@@ -1,4 +1,5 @@
 <script>
+	import Select from './Select.svelte';
     import { onDestroy, onMount } from "svelte";
 
     let stream;
@@ -34,6 +35,7 @@
         display: flex;
         justify-content: center;
         align-items: center;
+        flex-direction: column;
     }
 
     .main-modal {
@@ -48,5 +50,9 @@
 </style>
 
 <div class="main-modal-wrap">
-    <div class="main-modal"><video autoplay muted id="video" /></div>
+    <div class="main-modal">
+        <video autoplay muted id="video" />
+        
+        <Select />
+    </div>
 </div>

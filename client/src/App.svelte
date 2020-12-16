@@ -1,7 +1,7 @@
 <script>
 	import { deviceSelectorPopup } from "./stores.js";
-	import DeviceSettingsModal from "./DeviceSettingsModal.svelte";
-	import { on, emit } from "./socket";
+	import DeviceSettingsModal from "./components/DeviceSettingsModal.svelte";
+	import { on, emit } from "./services/socket.service";
 
 	let showDeviceSettingsPopup;
 
