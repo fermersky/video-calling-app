@@ -17,6 +17,9 @@
     "svelte": "^3.0.0"
   },
   "dependencies": {
-    "sirv-cli": "^1.0.0"
+    "@types/socket.io": "^2.1.12",
+    "rxjs": "^6.6.3",
+    "sirv-cli": "^1.0.0",
+    "socket.io-client": "^3.0.4"
   }
 }
