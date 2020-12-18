@@ -12,6 +12,25 @@ export const getMediaDevices = async () => {
   return [cameras, microphones, speakers];
 };
 
+export const generateConstraintsObject = (camera, microphone) => {
+  const generateDeviceConfig = device => {
+    if (device) {
+      return {
+        deviceId: {
+          exact: device.deviceId
+        }
+      }
+    }
+
+    return true;
+  }
+
+  return {
+    video: generateDeviceConfig(camera),
+    audio: generateDeviceConfig(microphone)
+  }
+}
+
 const filterByKind = (devices, kind) => {
   return devices.filter(device => device.kind === kind);
 }

@@ -1,4 +1,5 @@
 <script>
+	import { generateConstraintsObject } from './../services/media-devices.js';
 	import { deviceSelectorPopup } from './../stores.js';
     import { fetchDevices, saveDevices } from './../services/local-storage.js';
     import Button from "./Button.svelte";
@@ -14,19 +15,17 @@
         microphones = [],
         speakers = [];
 
-    $: allDevices = [...cameras, ...microphones, ...speakers];
-
     let selectedCamera, selectedMicrophone, selectedSpeaker;
 
     onMount(async () => {
-        await _displayUserVideo();
         await _initializeDeviceLists();
         _initializeSelectedDevices();
+        await _displayUserVideo();
     });
 
     const _displayUserVideo = async () => {
         const videoEl = document.getElementById("video");
-        stream = await getUserMedia();
+        stream = await getUserMedia(generateConstraintsObject(selectedCamera, selectedMicrophone));
         videoEl.srcObject = stream;
     };
 
@@ -40,27 +39,50 @@
     };
 
     const _initializeSelectedDevices = () => {
-        selectedCamera = _getDefaultDevice("videoinput");
-        selectedMicrophone = _getDefaultDevice("audioinput");
-        selectedSpeaker = speakers[0];
+        selectedCamera = _getDefaultCamera(cameras);
+        selectedMicrophone = _getDefaultMicrophone(microphones);
+        selectedSpeaker = _getDefaultSpeaker(speakers)
     };
 
-    const _getDefaultDevice = (kind) => {
+    const _getDefaultCamera = (devices) => {
+        return _getDefaultDevice('videoinput', devices);
+    }
+
+    const _getDefaultMicrophone = (devices) => {
+        return _getDefaultDevice('audioinput', devices);
+    }
+
+    const _getDefaultSpeaker = (devices) => {
         const alreadySelectedDevices = fetchDevices();
 
-        // if (alreadySelectedDevices) {
-        //     const device = _filterDevicesBy('kind', kind)
-        // }
+        if (!alreadySelectedDevices) {
+            return;
+        }
+
+        const [speaker] = _filterDevicesBy(devices, 'kind', 'audiooutput');
+
+        return speaker || devices[0];
+    }
+
+    const _getDefaultDevice = (kind, devices) => {
+        const alreadySelectedDevices = fetchDevices();
+
+        if (alreadySelectedDevices) {
+            const [alreadySelected] = _filterDevicesBy(Object.values(alreadySelectedDevices), 'kind', kind);
+
+            if (alreadySelected) {
+                return alreadySelected;
+            }
+        }
 
         const defaultSystemLabels = _getDefaultDevicesLabels();
 
-        const specificKindDevices = _filterDevicesBy("kind", kind);
-
-        const groupId = specificKindDevices.find((device) =>
+        const groupId = devices.find((device) =>
             defaultSystemLabels.includes(device.label)
         )?.groupId;
 
-        const selectedDevice = distinct(specificKindDevices).find((d) => d.groupId === groupId);
+        const selectedDevice = distinct(devices).find((d) => d.groupId === groupId);
+        console.warn(selectedDevice)
         return selectedDevice;
     };
 
@@ -68,28 +90,14 @@
         return stream.getTracks().map((track) => track.label);
     };
 
-    const _findDeviceById = (id) => {
-        const [device] = _filterDevicesBy("deviceId", id);
+    const _findDeviceById = (devices, id) => {
+        const [device] = _filterDevicesBy(devices, "deviceId", id);
         return device;
     };
 
-    const _filterDevicesBy = (prop, value) => {
-        return allDevices.filter((device) => device[prop] === value);
+    const _filterDevicesBy = (devices, prop, value) => {
+        return devices.filter((device) => device[prop] === value);
     };
-
-    const _generateConstraintObject = () => {
-        let constraints = {video: true, audio: true};
-
-        if (selectedCamera?.deviceId) {
-            constraints = {...constraints, video: {deviceId: {exact: selectedCamera.deviceId}}}
-        }
-
-        if (selectedMicrophone?.deviceId) {
-            constraints = {...constraints, audio: {deviceId: {exact: selectedMicrophone.deviceId}}}
-        }
-
-        return constraints;
-    }
 
     const _stopStreamTracks = () => {
         if (stream) {
@@ -108,22 +116,22 @@
 
     async function onCameraSelect({ detail }) {
         const cameraId = detail;
-        selectedCamera = _findDeviceById(cameraId);
+        selectedCamera = _findDeviceById(distinct(cameras), cameraId);
 
         _stopStreamTracks();
 
-        stream = await getUserMedia(_generateConstraintObject());
+        stream = await getUserMedia(generateConstraintsObject(selectedCamera, selectedMicrophone));
         video.srcObject = stream;
     }
 
     function onMicrophoneSelect({ detail }) {
         const microphoneId = detail;
-        selectedMicrophone = _findDeviceById(microphoneId);
+        selectedMicrophone =  _findDeviceById(distinct(microphones), microphoneId);
     }
 
     function onSpeakerSelect({ detail }) {
         const speakerId = detail;
-        selectedSpeaker = _findDeviceById(speakerId);
+        selectedSpeaker = _findDeviceById(distinct(speakers), speakerId);
     }
 
     function onSaveButtonClick() {
