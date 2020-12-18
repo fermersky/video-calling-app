@@ -5,9 +5,13 @@ export const getUserMedia = (constraintsObj = { video: true, audio: true }) => {
 export const getMediaDevices = async () => {
   const devices = await navigator.mediaDevices.enumerateDevices();
 
-  const cameras = devices.filter((d) => d.kind === "videoinput");
-  const microphones = devices.filter((d) => d.kind === "audioinput");
-  const speakers = devices.filter((d) => d.kind === "audiooutput");
+  const cameras = filterByKind(devices, 'videoinput');
+  const microphones = filterByKind(devices, 'audioinput');
+  const speakers = filterByKind(devices, 'audiooutput');
 
   return [cameras, microphones, speakers];
 };
+
+const filterByKind = (devices, kind) => {
+  return devices.filter(device => device.kind === kind);
+}

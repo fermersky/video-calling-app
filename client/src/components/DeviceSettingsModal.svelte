@@ -1,9 +1,11 @@
 <script>
+	import { deviceSelectorPopup } from './../stores.js';
+    import { fetchDevices, saveDevices } from './../services/local-storage.js';
     import Button from "./Button.svelte";
     import {
         getUserMedia,
         getMediaDevices,
-    } from "./../services/media-devices.service.js";
+    } from "../services/media-devices.js";
     import Select from "./Select.svelte";
     import { onDestroy, onMount } from "svelte";
 
@@ -28,6 +30,7 @@
         videoEl.srcObject = stream;
     };
 
+
     const _initializeDeviceLists = async () => {
         const [_cameras, _microphones, _speakers] = await getMediaDevices();
 
@@ -43,6 +46,12 @@
     };
 
     const _getDefaultDevice = (kind) => {
+        const alreadySelectedDevices = fetchDevices();
+
+        // if (alreadySelectedDevices) {
+        //     const device = _filterDevicesBy('kind', kind)
+        // }
+
         const defaultSystemLabels = _getDefaultDevicesLabels();
 
         const specificKindDevices = _filterDevicesBy("kind", kind);
@@ -51,7 +60,7 @@
             defaultSystemLabels.includes(device.label)
         )?.groupId;
 
-        const selectedDevice = allDevices.find((d) => d.groupId === groupId);
+        const selectedDevice = distinct(specificKindDevices).find((d) => d.groupId === groupId);
         return selectedDevice;
     };
 
@@ -68,15 +77,43 @@
         return allDevices.filter((device) => device[prop] === value);
     };
 
+    const _generateConstraintObject = () => {
+        let constraints = {video: true, audio: true};
+
+        if (selectedCamera?.deviceId) {
+            constraints = {...constraints, video: {deviceId: {exact: selectedCamera.deviceId}}}
+        }
+
+        if (selectedMicrophone?.deviceId) {
+            constraints = {...constraints, audio: {deviceId: {exact: selectedMicrophone.deviceId}}}
+        }
+
+        return constraints;
+    }
+
+    const _stopStreamTracks = () => {
+        if (stream) {
+            stream.getTracks().map(track => track.stop());
+        }
+
+        stream = null;
+        video.srcObject = null;
+    }
+
     function distinct(devices) {
         return devices.filter(
             (device) => !["default", "communications"].includes(device.deviceId)
         );
     }
 
-    function onCameraSelect({ detail }) {
+    async function onCameraSelect({ detail }) {
         const cameraId = detail;
         selectedCamera = _findDeviceById(cameraId);
+
+        _stopStreamTracks();
+
+        stream = await getUserMedia(_generateConstraintObject());
+        video.srcObject = stream;
     }
 
     function onMicrophoneSelect({ detail }) {
@@ -90,18 +127,13 @@
     }
 
     function onSaveButtonClick() {
-        console.warn(selectedCamera, selectedMicrophone, selectedSpeaker);
+        saveDevices({selectedCamera, selectedMicrophone, selectedSpeaker});
+        deviceSelectorPopup.update(_ => false)
     }
 
     onDestroy(() => {
-        stream && stream.getTracks().map((track) => track.stop());
-        stream = null;
+        _stopStreamTracks();
     });
-
-    let title = 'asdf';
-    setTimeout(() => {
-        title = 'updated'
-    }, 3000)
 </script>
 
 <style>
@@ -133,6 +165,12 @@
         flex-direction: column;
     }
 
+    .video-container {
+        max-width: 100%;
+        height: 200px;
+        overflow: hidden;
+    }
+
     #video {
         max-width: 300px;
     }
@@ -140,11 +178,13 @@
 
 <div class="main-modal-wrap">
     <div class="main-modal">
-        <video autoplay muted id="video" />
+        <div class="video-container">
+            <video autoplay muted id="video" />
+        </div>
 
         <Select
             on:onSelect={onCameraSelect}
-            defaultValue={title}
+            defaultValue={selectedCamera?.deviceId}
             key="deviceId"
             value="label"
             title="Default camera"
@@ -152,7 +192,7 @@
 
         <Select
             on:onSelect={onMicrophoneSelect}
-            defaultValue={selectedMicrophone}
+            defaultValue={selectedMicrophone?.deviceId}
             key="deviceId"
             value="label"
             title="Default microphone"

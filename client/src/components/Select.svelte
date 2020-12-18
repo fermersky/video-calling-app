@@ -8,8 +8,6 @@
 	export let value;
 	export let defaultValue;
 
-	console.warn(defaultValue);
-
 	function handleChange(e) {
 		dispatch("onSelect", e.target.value);
 	}
@@ -37,7 +35,7 @@
 		<!-- svelte-ignore a11y-no-onchange -->
 		<select on:change={handleChange}>
 			{#each items as item}
-				<option value={item[key]}>{item[value]}</option>
+				<option selected={item[key] === defaultValue} value={item[key]}>{item[value]}</option>
 			{/each}
 		</select>
 	</div>
