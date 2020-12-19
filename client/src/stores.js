@@ -1,3 +1,4 @@
 import { writable } from 'svelte/store';
 
-export const deviceSelectorPopup = writable(false);
+export const deviceSelectorPopupSubject = writable(false);
+export const userInfoSubject = writable();

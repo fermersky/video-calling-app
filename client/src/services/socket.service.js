@@ -5,5 +5,5 @@ export const on = (event, fn) => {
 };
 
 export const emit = (event, data) => {
-  socket.on(event, data);
+  socket.emit(event, data);
 };

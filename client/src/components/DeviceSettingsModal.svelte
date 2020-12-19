@@ -1,219 +1,209 @@
 <script>
-	import { generateConstraintsObject } from './../services/media-devices.js';
-	import { deviceSelectorPopup } from './../stores.js';
-    import { fetchDevices, saveDevices } from './../services/local-storage.js';
-    import Button from "./Button.svelte";
-    import {
-        getUserMedia,
-        getMediaDevices,
-    } from "../services/media-devices.js";
-    import Select from "./Select.svelte";
-    import { onDestroy, onMount } from "svelte";
+  import { generateConstraintsObject } from "./../services/media-devices.js";
+  import { deviceSelectorPopupSubject } from "./../stores.js";
+  import { fetchDevices, saveDevices } from "./../services/local-storage.js";
+  import Button from "./Button.svelte";
+  import { getUserMedia, getMediaDevices } from "../services/media-devices.js";
+  import Select from "./Select.svelte";
+  import { onDestroy, onMount } from "svelte";
 
-    let stream;
-    let cameras = [],
-        microphones = [],
-        speakers = [];
+  let stream;
+  let cameras = [],
+    microphones = [],
+    speakers = [];
 
-    let selectedCamera, selectedMicrophone, selectedSpeaker;
+  let selectedCamera, selectedMicrophone, selectedSpeaker;
 
-    onMount(async () => {
-        await _initializeDeviceLists();
-        _initializeSelectedDevices();
-        await _displayUserVideo();
-    });
+  onMount(async () => {
+    await _initializeDeviceLists();
+    _initializeSelectedDevices();
+    await _displayUserVideo();
+  });
 
-    const _displayUserVideo = async () => {
-        const videoEl = document.getElementById("video");
-        stream = await getUserMedia(generateConstraintsObject(selectedCamera, selectedMicrophone));
-        videoEl.srcObject = stream;
-    };
+  const _displayUserVideo = async () => {
+    const videoEl = document.getElementById("video");
+    stream = await getUserMedia(generateConstraintsObject(selectedCamera, selectedMicrophone));
+    videoEl.srcObject = stream;
+  };
 
+  const _initializeDeviceLists = async () => {
+    const [_cameras, _microphones, _speakers] = await getMediaDevices();
 
-    const _initializeDeviceLists = async () => {
-        const [_cameras, _microphones, _speakers] = await getMediaDevices();
+    cameras = _cameras;
+    microphones = _microphones;
+    speakers = _speakers;
+  };
 
-        cameras = _cameras;
-        microphones = _microphones;
-        speakers = _speakers;
-    };
+  const _initializeSelectedDevices = () => {
+    selectedCamera = _getDefaultCamera(cameras);
+    selectedMicrophone = _getDefaultMicrophone(microphones);
+    selectedSpeaker = _getDefaultSpeaker(speakers);
+  };
 
-    const _initializeSelectedDevices = () => {
-        selectedCamera = _getDefaultCamera(cameras);
-        selectedMicrophone = _getDefaultMicrophone(microphones);
-        selectedSpeaker = _getDefaultSpeaker(speakers)
-    };
+  const _getDefaultCamera = (devices) => {
+    return _getDefaultDevice("videoinput", devices);
+  };
 
-    const _getDefaultCamera = (devices) => {
-        return _getDefaultDevice('videoinput', devices);
+  const _getDefaultMicrophone = (devices) => {
+    return _getDefaultDevice("audioinput", devices);
+  };
+
+  const _getDefaultSpeaker = (devices) => {
+    const alreadySelectedDevices = fetchDevices();
+
+    if (!alreadySelectedDevices) {
+      return;
     }
 
-    const _getDefaultMicrophone = (devices) => {
-        return _getDefaultDevice('audioinput', devices);
+    const [speaker] = _filterDevicesBy(devices, "kind", "audiooutput");
+
+    return speaker || devices[0];
+  };
+
+  const _getDefaultDevice = (kind, devices) => {
+    const alreadySelectedDevices = fetchDevices();
+
+    if (alreadySelectedDevices) {
+      const [alreadySelected] = _filterDevicesBy(Object.values(alreadySelectedDevices), "kind", kind);
+
+      if (alreadySelected) {
+        return alreadySelected;
+      }
     }
 
-    const _getDefaultSpeaker = (devices) => {
-        const alreadySelectedDevices = fetchDevices();
+    const defaultSystemLabels = _getDefaultDevicesLabels();
 
-        if (!alreadySelectedDevices) {
-            return;
-        }
+    const groupId = devices.find((device) => defaultSystemLabels.includes(device.label))?.groupId;
 
-        const [speaker] = _filterDevicesBy(devices, 'kind', 'audiooutput');
+    const selectedDevice = distinct(devices).find((d) => d.groupId === groupId);
+    console.warn(selectedDevice);
+    return selectedDevice;
+  };
 
-        return speaker || devices[0];
+  const _getDefaultDevicesLabels = () => {
+    return stream.getTracks().map((track) => track.label);
+  };
+
+  const _findDeviceById = (devices, id) => {
+    const [device] = _filterDevicesBy(devices, "deviceId", id);
+    return device;
+  };
+
+  const _filterDevicesBy = (devices, prop, value) => {
+    return devices.filter((device) => device[prop] === value);
+  };
+
+  const _stopStreamTracks = () => {
+    if (stream) {
+      stream.getTracks().map((track) => track.stop());
     }
 
-    const _getDefaultDevice = (kind, devices) => {
-        const alreadySelectedDevices = fetchDevices();
+    stream = null;
+    video.srcObject = null;
+  };
 
-        if (alreadySelectedDevices) {
-            const [alreadySelected] = _filterDevicesBy(Object.values(alreadySelectedDevices), 'kind', kind);
+  function distinct(devices) {
+    return devices.filter((device) => !["default", "communications"].includes(device.deviceId));
+  }
 
-            if (alreadySelected) {
-                return alreadySelected;
-            }
-        }
+  async function onCameraSelect({ detail }) {
+    const cameraId = detail;
+    selectedCamera = _findDeviceById(distinct(cameras), cameraId);
 
-        const defaultSystemLabels = _getDefaultDevicesLabels();
+    _stopStreamTracks();
 
-        const groupId = devices.find((device) =>
-            defaultSystemLabels.includes(device.label)
-        )?.groupId;
+    stream = await getUserMedia(generateConstraintsObject(selectedCamera, selectedMicrophone));
+    video.srcObject = stream;
+  }
 
-        const selectedDevice = distinct(devices).find((d) => d.groupId === groupId);
-        console.warn(selectedDevice)
-        return selectedDevice;
-    };
+  function onMicrophoneSelect({ detail }) {
+    const microphoneId = detail;
+    selectedMicrophone = _findDeviceById(distinct(microphones), microphoneId);
+  }
 
-    const _getDefaultDevicesLabels = () => {
-        return stream.getTracks().map((track) => track.label);
-    };
+  function onSpeakerSelect({ detail }) {
+    const speakerId = detail;
+    selectedSpeaker = _findDeviceById(distinct(speakers), speakerId);
+  }
 
-    const _findDeviceById = (devices, id) => {
-        const [device] = _filterDevicesBy(devices, "deviceId", id);
-        return device;
-    };
+  function onSaveButtonClick() {
+    saveDevices({ selectedCamera, selectedMicrophone, selectedSpeaker });
+    deviceSelectorPopupSubject.update((_) => false);
+  }
 
-    const _filterDevicesBy = (devices, prop, value) => {
-        return devices.filter((device) => device[prop] === value);
-    };
-
-    const _stopStreamTracks = () => {
-        if (stream) {
-            stream.getTracks().map(track => track.stop());
-        }
-
-        stream = null;
-        video.srcObject = null;
-    }
-
-    function distinct(devices) {
-        return devices.filter(
-            (device) => !["default", "communications"].includes(device.deviceId)
-        );
-    }
-
-    async function onCameraSelect({ detail }) {
-        const cameraId = detail;
-        selectedCamera = _findDeviceById(distinct(cameras), cameraId);
-
-        _stopStreamTracks();
-
-        stream = await getUserMedia(generateConstraintsObject(selectedCamera, selectedMicrophone));
-        video.srcObject = stream;
-    }
-
-    function onMicrophoneSelect({ detail }) {
-        const microphoneId = detail;
-        selectedMicrophone =  _findDeviceById(distinct(microphones), microphoneId);
-    }
-
-    function onSpeakerSelect({ detail }) {
-        const speakerId = detail;
-        selectedSpeaker = _findDeviceById(distinct(speakers), speakerId);
-    }
-
-    function onSaveButtonClick() {
-        saveDevices({selectedCamera, selectedMicrophone, selectedSpeaker});
-        deviceSelectorPopup.update(_ => false)
-    }
-
-    onDestroy(() => {
-        _stopStreamTracks();
-    });
+  onDestroy(() => {
+    _stopStreamTracks();
+  });
 </script>
 
 <style>
-    .main-modal-wrap {
-        top: 0;
-        transition: 0.3s;
-        right: 0;
-        left: 0;
-        bottom: 0;
-        position: absolute;
-        background: rgba(0, 0, 0, 0.329);
-        backdrop-filter: blur(3px);
+  .main-modal-wrap {
+    top: 0;
+    transition: 0.3s;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    position: absolute;
+    background: rgba(0, 0, 0, 0.329);
+    backdrop-filter: blur(3px);
 
-        color: #eee;
+    color: #eee;
 
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
 
-    .main-modal {
-        padding: 40px;
-        background: rgb(0, 0, 0);
-        border-radius: 10px;
+  .main-modal {
+    padding: 40px;
+    background: rgb(0, 0, 0);
+    border-radius: 10px;
 
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        flex-direction: column;
-    }
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+  }
 
-    .video-container {
-        max-width: 100%;
-        height: 200px;
-        overflow: hidden;
-    }
+  .video-container {
+    max-width: 100%;
+    height: 200px;
+    overflow: hidden;
+  }
 
-    #video {
-        max-width: 300px;
-    }
+  #video {
+    max-width: 300px;
+  }
 </style>
 
 <div class="main-modal-wrap">
-    <div class="main-modal">
-        <div class="video-container">
-            <video autoplay muted id="video" />
-        </div>
+  <div class="main-modal">
+    <div class="video-container"><video autoplay muted id="video" /></div>
 
-        <Select
-            on:onSelect={onCameraSelect}
-            defaultValue={selectedCamera?.deviceId}
-            key="deviceId"
-            value="label"
-            title="Default camera"
-            items={distinct(cameras)} />
+    <Select
+      on:onSelect={onCameraSelect}
+      defaultValue={selectedCamera?.deviceId}
+      key="deviceId"
+      value="label"
+      title="Default camera"
+      items={distinct(cameras)} />
 
-        <Select
-            on:onSelect={onMicrophoneSelect}
-            defaultValue={selectedMicrophone?.deviceId}
-            key="deviceId"
-            value="label"
-            title="Default microphone"
-            items={distinct(microphones)} />
+    <Select
+      on:onSelect={onMicrophoneSelect}
+      defaultValue={selectedMicrophone?.deviceId}
+      key="deviceId"
+      value="label"
+      title="Default microphone"
+      items={distinct(microphones)} />
 
-        <Select
-            on:onSelect={onSpeakerSelect}
-            defaultValue={selectedSpeaker?.deviceId}
-            key="deviceId"
-            value="label"
-            title="Default speaker"
-            items={distinct(speakers)} />
+    <Select
+      on:onSelect={onSpeakerSelect}
+      defaultValue={selectedSpeaker?.deviceId}
+      key="deviceId"
+      value="label"
+      title="Default speaker"
+      items={distinct(speakers)} />
 
-        <Button on:onClick={onSaveButtonClick}>Save</Button>
-    </div>
+    <Button on:onClick={onSaveButtonClick}>Save</Button>
+  </div>
 </div>
