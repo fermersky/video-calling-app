@@ -19,7 +19,7 @@ export class WebsocketsEventsGateway implements OnGatewayDisconnect {
 
   @SubscribeMessage('join')
   onJoin(@MessageBody() name: string, @ConnectedSocket() client: Socket) {
-    const user: IUser = { name, uid: client.id.substr(0, 4) };
+    const user: IUser = { name, uid: this.socketIdToUid(client.id) };
 
     this._users.push(user);
     client.emit('welcome', user);
@@ -31,6 +31,10 @@ export class WebsocketsEventsGateway implements OnGatewayDisconnect {
   }
 
   handleDisconnect(client: Socket) {
-    this._users.remove(client.id.substr(0, 4));
+    this._users.remove(this.socketIdToUid(client.id));
+  }
+
+  private socketIdToUid(longId: string): string {
+    return longId.substr(0, 4).toLowerCase();
   }
 }

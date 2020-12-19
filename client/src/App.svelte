@@ -9,16 +9,17 @@
   let showDeviceSettingsPopup;
   let username;
   let joined = false;
+  let uid;
 
   onMount(() => {
     const name = fetchName();
-    console.warn(name);
     userInfoSubject.update(() => name);
   });
 
   const handleWelcome = (data) => {
     joined = true;
     userInfoSubject.update((_) => data);
+    uid = data.uid;
   };
 
   on("welcome", handleWelcome);
@@ -80,6 +81,16 @@
     align-items: center;
     justify-content: center;
   }
+
+  .uid-label {
+    background: rgb(27, 27, 27);
+    display: inline-block;
+    padding: 20px;
+    border-radius: 10px;
+    font-size: 3rem;
+    margin: 40px;
+    box-shadow: 0 0 10px #000;
+  }
 </style>
 
 <main>
@@ -93,6 +104,12 @@
         <input bind:value={username} type="text" id="name-input" placeholder="What is your name, hero?" />
         <Button type="submit" disabled={!username}>Join</Button>
       </form>
+    </div>
+  {:else}
+    <div style="margin: 20px;">
+      <h2>Your unique number is</h2>
+      <h3 class="uid-label">{uid}</h3>
+      <h3>Share this number to the one who wanna call you</h3>
     </div>
   {/if}
 
