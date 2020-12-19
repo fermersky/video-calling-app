@@ -12,10 +12,16 @@ export const fetchDevices = () => {
   return devices;
 };
 
-export const saveUserDetails = (name) => {
-  localStorage.setItem(userToken(), name);
+export const saveUserDetails = (data) => {
+  localStorage.setItem(userToken(), JSON.stringify(data));
 };
 
 export const fetchUserDetails = () => {
-  return localStorage.getItem(userToken())?.name;
+  const raw = localStorage.getItem(userToken());
+
+  if (raw) {
+    return JSON.parse(raw);
+  }
+
+  return null;
 };

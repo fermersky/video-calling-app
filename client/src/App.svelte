@@ -16,8 +16,7 @@
 
   onMount(() => {
     const user = fetchUserDetails();
-    console.log(user);
-    user && userInfoSubject.update(() => user.name);
+    userInfoSubject.update(() => user);
   });
 
   const handleWelcome = (data) => {
@@ -83,8 +82,9 @@
     width: 300px;
   }
 
-  .join-block {
+  .join-form {
     display: flex;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
   }
@@ -126,8 +126,7 @@
 
   {#if !joined}
     <div class="join-form">
-      <h2>Who are you?</h2>
-
+      <h2 style="margin-right: 20px;">Who are you?</h2>
       <form on:submit|preventDefault={handleJoin}>
         <input bind:value={username} type="text" id="name-input" placeholder="What is your name, hero?" />
         <Button type="submit" disabled={!username}>Join</Button>
@@ -144,7 +143,7 @@
 
       <form on:submit|preventDefault={handleStartCall}>
         <input bind:value={participantUid} type="text" id="name-input" placeholder="XYZZ" />
-        <Button type="submit" disabled={!username}>Call</Button>
+        <Button type="submit" disabled={!participantUid && participantUid?.length === 4}>Call</Button>
       </form>
     </div>
   {/if}
