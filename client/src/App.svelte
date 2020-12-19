@@ -1,10 +1,12 @@
 <script>
-  import Button from "./components/Button.svelte";
-  import { deviceSelectorPopupSubject, userInfoSubject } from "./stores.js";
-  import DeviceSettingsModal from "./components/DeviceSettingsModal.svelte";
-  import { on, emit } from "./services/socket.service";
-  import { fetchName, saveName } from "./services/local-storage";
-  import { onMount } from "svelte";
+  import Button from './components/Button.svelte';
+  import { deviceSelectorPopupSubject, userInfoSubject } from './stores.js';
+  import DeviceSettingsModal from './components/DeviceSettingsModal.svelte';
+  import { on, emit } from './services/socket.service';
+  import { fetchName, saveName } from './services/local-storage';
+  import { onMount } from 'svelte';
+  import Emoji from './components/Emoji.svelte';
+  import Splitter from './components/Splitter.svelte';
 
   let showDeviceSettingsPopup;
   let username;
@@ -22,7 +24,7 @@
     uid = data.uid;
   };
 
-  on("welcome", handleWelcome);
+  on('welcome', handleWelcome);
 
   userInfoSubject.subscribe((val) => (username = val));
 
@@ -35,9 +37,11 @@
   }
 
   function handleJoin(e) {
-    emit("join", username);
+    emit('join', username);
     saveName(username);
   }
+
+  function handleStartCall() {}
 </script>
 
 <style>
@@ -94,7 +98,13 @@
 </style>
 
 <main>
-  <h1>So call me maybe!</h1>
+  <h1>
+    So
+    <Emoji label="phone">🤙</Emoji>
+    me maybe!
+  </h1>
+
+  <Splitter />
 
   {#if !joined}
     <div class="flex-row">
@@ -110,6 +120,14 @@
       <h2>Your unique number is</h2>
       <h3 class="uid-label">{uid}</h3>
       <h3>Share this number to the one who wanna call you</h3>
+      <Splitter />
+
+      <h3>or input shared with you number below</h3>
+
+      <form on:submit|preventDefault={handleStartCall}>
+        <input type="text" id="name-input" placeholder="XYZZ" />
+        <Button type="submit" disabled={!username}>Call</Button>
+      </form>
     </div>
   {/if}
 
