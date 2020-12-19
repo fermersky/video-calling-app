@@ -128,7 +128,7 @@
 
   {#if !joined}
     <div class="join-form">
-      <h2 style="margin-right: 20px;">Who are you?</h2>
+      <h2 style="margin: 20px;">Who are you?</h2>
       <form on:submit|preventDefault={handleJoin}>
         <input bind:value={username} type="text" id="name-input" placeholder="What is your name, hero?" />
         <Button type="submit" disabled={!username}>Join</Button>
@@ -136,12 +136,12 @@
     </div>
   {:else}
     <div style="margin: 20px;">
-      <h2>Your unique number is</h2>
+      <h2>Your identifier is</h2>
       <h3 class="uid-label">{uid}</h3>
-      <h3>Share this number to the one who wanna call you</h3>
+      <h3>Send it to the one who wanna call you and you will get in touch</h3>
       <Splitter />
 
-      <h3>or enter number shared with you below</h3>
+      <h3>or enter identifier shared with you below</h3>
 
       <form on:submit|preventDefault={handleStartCall}>
         <input bind:value={participantUid} type="text" id="name-input" placeholder="XYZZ" />
