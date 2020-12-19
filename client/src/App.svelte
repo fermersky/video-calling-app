@@ -14,6 +14,8 @@
   let uid;
   let participantUid;
 
+  $: callButtonDisabled = !(participantUid && participantUid.length === 4);
+
   onMount(() => {
     const user = fetchUserDetails();
     userInfoSubject.update(() => user);
@@ -139,11 +141,11 @@
       <h3>Share this number to the one who wanna call you</h3>
       <Splitter />
 
-      <h3>or input shared with you number below</h3>
+      <h3>or enter number shared with you below</h3>
 
       <form on:submit|preventDefault={handleStartCall}>
         <input bind:value={participantUid} type="text" id="name-input" placeholder="XYZZ" />
-        <Button type="submit" disabled={!participantUid && participantUid?.length === 4}>Call</Button>
+        <Button type="submit" disabled={callButtonDisabled}>Call</Button>
       </form>
     </div>
   {/if}
