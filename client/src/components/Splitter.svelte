@@ -4,6 +4,7 @@
 <style>
   .split {
     display: flex;
+    align-items: center;
     flex-direction: row;
     justify-content: center;
     align-items: center;
@@ -11,6 +12,9 @@
     font-size: 3rem;
     position: relative;
     padding: 30px;
+
+    width: 150px;
+    margin: 0 auto;
   }
 
   .split:hover span {

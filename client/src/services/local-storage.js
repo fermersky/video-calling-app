@@ -1,5 +1,5 @@
 const devicesToken = () => '__devices_token';
-const nameToken = () => '__name_token';
+const userToken = () => '__user_token';
 
 export const saveDevices = (o) => {
   localStorage.setItem(devicesToken(), JSON.stringify(o));
@@ -12,10 +12,10 @@ export const fetchDevices = () => {
   return devices;
 };
 
-export const saveName = (name) => {
-  localStorage.setItem(nameToken(), name);
+export const saveUserDetails = (name) => {
+  localStorage.setItem(userToken(), name);
 };
 
-export const fetchName = () => {
-  return localStorage.getItem(nameToken());
+export const fetchUserDetails = () => {
+  return localStorage.getItem(userToken())?.name;
 };

@@ -3,7 +3,7 @@
   import { deviceSelectorPopupSubject, userInfoSubject } from './stores.js';
   import DeviceSettingsModal from './components/DeviceSettingsModal.svelte';
   import { on, emit } from './services/socket.service';
-  import { fetchName, saveName } from './services/local-storage';
+  import { fetchUserDetails, saveUserDetails } from './services/local-storage';
   import { onMount } from 'svelte';
   import Emoji from './components/Emoji.svelte';
   import Splitter from './components/Splitter.svelte';
@@ -12,21 +12,24 @@
   let username;
   let joined = false;
   let uid;
+  let participantUid;
 
   onMount(() => {
-    const name = fetchName();
-    userInfoSubject.update(() => name);
+    const user = fetchUserDetails();
+    console.log(user);
+    user && userInfoSubject.update(() => user.name);
   });
 
   const handleWelcome = (data) => {
     joined = true;
     userInfoSubject.update((_) => data);
     uid = data.uid;
+    saveUserDetails(data);
   };
 
   on('welcome', handleWelcome);
 
-  userInfoSubject.subscribe((val) => (username = val));
+  userInfoSubject.subscribe((val) => (username = val?.name));
 
   deviceSelectorPopupSubject.subscribe((val) => {
     showDeviceSettingsPopup = val;
@@ -38,10 +41,11 @@
 
   function handleJoin(e) {
     emit('join', username);
-    saveName(username);
   }
 
-  function handleStartCall() {}
+  function handleStartCall() {
+    emit('try-call', { username, participantUid });
+  }
 </script>
 
 <style>
@@ -100,7 +104,7 @@
 <main>
   <h1>
     So
-    <Emoji label="phone">🤙</Emoji>
+    <Emoji>🤙</Emoji>
     me maybe!
   </h1>
 
@@ -125,7 +129,7 @@
       <h3>or input shared with you number below</h3>
 
       <form on:submit|preventDefault={handleStartCall}>
-        <input type="text" id="name-input" placeholder="XYZZ" />
+        <input bind:value={participantUid} type="text" id="name-input" placeholder="XYZZ" />
         <Button type="submit" disabled={!username}>Call</Button>
       </form>
     </div>

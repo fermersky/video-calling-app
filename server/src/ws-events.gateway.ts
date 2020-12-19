@@ -9,7 +9,7 @@ import {
 } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
 import { ConnectedUsersService } from './connected-users.service';
-import { IUser } from './interfaces';
+import { IOffer, IUser } from './interfaces';
 
 @WebSocketGateway()
 export class WebsocketsEventsGateway implements OnGatewayDisconnect {
@@ -25,9 +25,14 @@ export class WebsocketsEventsGateway implements OnGatewayDisconnect {
     client.emit('welcome', user);
   }
 
+  @SubscribeMessage('try-call')
+  onTryCall(@MessageBody() data: any, @ConnectedSocket() client: Socket) {
+    console.warn(data);
+  }
+
   @SubscribeMessage('video-offer')
-  async onChat(@MessageBody() data: string, @ConnectedSocket() client: Socket) {
-    client.emit('chat', data);
+  async onChat(@MessageBody() data: IOffer, @ConnectedSocket() client: Socket) {
+    console.log(data);
   }
 
   handleDisconnect(client: Socket) {

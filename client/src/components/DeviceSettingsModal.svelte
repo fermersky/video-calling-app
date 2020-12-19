@@ -1,11 +1,11 @@
 <script>
-  import { generateConstraintsObject } from "./../services/media-devices.js";
-  import { deviceSelectorPopupSubject } from "./../stores.js";
-  import { fetchDevices, saveDevices } from "./../services/local-storage.js";
-  import Button from "./Button.svelte";
-  import { getUserMedia, getMediaDevices } from "../services/media-devices.js";
-  import Select from "./Select.svelte";
-  import { onDestroy, onMount } from "svelte";
+  import { generateConstraintsObject } from './../services/media-devices.js';
+  import { deviceSelectorPopupSubject } from './../stores.js';
+  import { fetchDevices, saveDevices } from './../services/local-storage.js';
+  import Button from './Button.svelte';
+  import { getUserMedia, getMediaDevices } from '../services/media-devices.js';
+  import Select from './Select.svelte';
+  import { onDestroy, onMount } from 'svelte';
 
   let stream;
   let cameras = [],
@@ -15,13 +15,20 @@
   let selectedCamera, selectedMicrophone, selectedSpeaker;
 
   onMount(async () => {
+    const alreadySelectedDevices = fetchDevices();
+
+    if (alreadySelectedDevices) {
+      selectedCamera = alreadySelectedDevices.selectedCamera;
+      selectedMicrophone = alreadySelectedDevices.selectedMicrophone;
+    }
+
+    await _displayUserVideo();
     await _initializeDeviceLists();
     _initializeSelectedDevices();
-    await _displayUserVideo();
   });
 
   const _displayUserVideo = async () => {
-    const videoEl = document.getElementById("video");
+    const videoEl = document.getElementById('video');
     stream = await getUserMedia(generateConstraintsObject(selectedCamera, selectedMicrophone));
     videoEl.srcObject = stream;
   };
@@ -41,11 +48,11 @@
   };
 
   const _getDefaultCamera = (devices) => {
-    return _getDefaultDevice("videoinput", devices);
+    return _getDefaultDevice('videoinput', devices);
   };
 
   const _getDefaultMicrophone = (devices) => {
-    return _getDefaultDevice("audioinput", devices);
+    return _getDefaultDevice('audioinput', devices);
   };
 
   const _getDefaultSpeaker = (devices) => {
@@ -55,28 +62,17 @@
       return;
     }
 
-    const [speaker] = _filterDevicesBy(devices, "kind", "audiooutput");
+    const [speaker] = _filterDevicesBy(devices, 'kind', 'audiooutput');
 
     return speaker || devices[0];
   };
 
   const _getDefaultDevice = (kind, devices) => {
-    const alreadySelectedDevices = fetchDevices();
-
-    if (alreadySelectedDevices) {
-      const [alreadySelected] = _filterDevicesBy(Object.values(alreadySelectedDevices), "kind", kind);
-
-      if (alreadySelected) {
-        return alreadySelected;
-      }
-    }
-
     const defaultSystemLabels = _getDefaultDevicesLabels();
 
     const groupId = devices.find((device) => defaultSystemLabels.includes(device.label))?.groupId;
 
     const selectedDevice = distinct(devices).find((d) => d.groupId === groupId);
-    console.warn(selectedDevice);
     return selectedDevice;
   };
 
@@ -85,7 +81,7 @@
   };
 
   const _findDeviceById = (devices, id) => {
-    const [device] = _filterDevicesBy(devices, "deviceId", id);
+    const [device] = _filterDevicesBy(devices, 'deviceId', id);
     return device;
   };
 
@@ -103,7 +99,7 @@
   };
 
   function distinct(devices) {
-    return devices.filter((device) => !["default", "communications"].includes(device.deviceId));
+    return devices.filter((device) => !['default', 'communications'].includes(device.deviceId));
   }
 
   async function onCameraSelect({ detail }) {
