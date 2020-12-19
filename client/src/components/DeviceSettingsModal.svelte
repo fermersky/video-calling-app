@@ -24,10 +24,43 @@
       selectedMicrophone = alreadySelectedDevices.selectedMicrophone;
     }
 
+    _subscribeOnEscapeClick();
+    _subscribeOnOutsideClick();
+
     await _displayUserVideo();
     await _initializeDeviceLists();
     _initializeSelectedDevices();
   });
+
+  const _escapeButtonListener = (e) => {
+    if (e.key === 'Escape') {
+      deviceSelectorPopupSubject.update((_) => false);
+    }
+  };
+
+  const _outsideClickListener = (e) => {
+    const modal = document.querySelector('.main-modal-wrap');
+
+    if (e.target.contains(modal)) {
+      deviceSelectorPopupSubject.update((_) => false);
+    }
+  };
+
+  const _subscribeOnEscapeClick = () => {
+    window.addEventListener('keydown', _escapeButtonListener);
+  };
+
+  const _unsubcribeOnEscapeClick = () => {
+    window.removeEventListener('keydown', _escapeButtonListener);
+  };
+
+  const _subscribeOnOutsideClick = () => {
+    window.addEventListener('click', _outsideClickListener);
+  };
+
+  const _unsubscribeOnOutisdeClick = () => {
+    window.removeEventListener('click', _outsideClickListener);
+  };
 
   const _displayUserVideo = async () => {
     const videoEl = document.getElementById('video');
@@ -131,6 +164,8 @@
 
   onDestroy(() => {
     _stopStreamTracks();
+    _unsubcribeOnEscapeClick();
+    _unsubscribeOnOutisdeClick();
   });
 </script>
 
