@@ -1,4 +1,6 @@
 <script>
+  import Spinner from './Spinner.svelte';
+  import { isMobile } from './../services/is-mobile.js';
   import { generateConstraintsObject } from './../services/media-devices.js';
   import { deviceSelectorPopupSubject } from './../stores.js';
   import { fetchDevices, saveDevices } from './../services/local-storage.js';
@@ -159,6 +161,8 @@
     justify-content: center;
     align-items: center;
     flex-direction: column;
+
+    position: relative;
   }
 
   .video-container {
@@ -170,10 +174,21 @@
   #video {
     max-width: 300px;
   }
+
+  .spinner-wrap {
+    position: absolute;
+    top: 100px;
+  }
 </style>
 
 <div class="main-modal-wrap">
   <div class="main-modal">
+    {#if !stream}
+      <div class="spinner-wrap">
+        <Spinner />
+      </div>
+    {/if}
+
     <div class="video-container"><video autoplay muted id="video" /></div>
 
     <Select
@@ -192,13 +207,15 @@
       title="Default microphone"
       items={distinct(microphones)} />
 
-    <Select
-      on:onSelect={onSpeakerSelect}
-      defaultValue={selectedSpeaker?.deviceId}
-      key="deviceId"
-      value="label"
-      title="Default speaker"
-      items={distinct(speakers)} />
+    {#if !isMobile()}
+      <Select
+        on:onSelect={onSpeakerSelect}
+        defaultValue={selectedSpeaker?.deviceId}
+        key="deviceId"
+        value="label"
+        title="Default speaker"
+        items={distinct(speakers)} />
+    {/if}
 
     <Button on:onClick={onSaveButtonClick}>Save</Button>
   </div>

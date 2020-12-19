@@ -67,7 +67,6 @@
     color: #b3ff00;
     cursor: pointer;
     z-index: 2;
-    padding: 20px;
     font-size: 20px;
   }
 
@@ -79,15 +78,30 @@
     padding: 10px 20px;
     border-radius: 10px;
     color: #eee;
-    margin: 20px;
+    margin: 20px 0;
     font-size: 1.4rem;
     width: 300px;
   }
 
-  .flex-row {
+  .join-block {
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  @media only screen and (max-width: 600px) {
+    .join-form {
+      flex-direction: column;
+    }
+
+    .open-settings-btn {
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    h1 {
+      margin-top: 100px;
+    }
   }
 
   .uid-label {
@@ -111,7 +125,7 @@
   <Splitter />
 
   {#if !joined}
-    <div class="flex-row">
+    <div class="join-form">
       <h2>Who are you?</h2>
 
       <form on:submit|preventDefault={handleJoin}>
