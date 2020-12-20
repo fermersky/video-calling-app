@@ -1,29 +1,31 @@
 <script>
-  import { createEventDispatcher } from "svelte";
+  import { createEventDispatcher } from 'svelte';
 
-  export let type = "button";
+  export let type = 'button';
 
   const dispatch = createEventDispatcher();
 
   function handleClick() {
-    dispatch("onClick");
+    dispatch('onClick');
   }
 </script>
 
 <style>
   button {
     border-radius: 5px;
-    background: #b3ff00;
+    background: #fde931;
     font-weight: bold;
     padding: 7px 15px;
     cursor: pointer;
-    border: 3px solid #648f00;
+    /* border: 3px solid #648f00; */
     text-transform: uppercase;
     margin: 10px;
+    box-shadow: 5px 5px 10px #000;
   }
 
   button[disabled] {
     cursor: not-allowed;
+    box-shadow: none;
   }
 </style>
 

@@ -1,4 +1,6 @@
 <script>
+  import CriticalToastContainer from './components/CriticalToastContainer.svelte';
+  import { copy } from './services/copy.js';
   import Button from './components/Button.svelte';
   import { deviceSelectorPopupSubject, userInfoSubject } from './stores.js';
   import DeviceSettingsModal from './components/DeviceSettingsModal.svelte';
@@ -13,6 +15,7 @@
   let joined = false;
   let uid;
   let participantUid;
+  let copyText = 'Click to copy';
 
   $: callButtonDisabled = !(participantUid && participantUid.length === 4);
 
@@ -47,6 +50,11 @@
   function handleStartCall() {
     emit('try-call', { username, participantUid });
   }
+
+  function handleUidClick() {
+    copyText = 'Copied';
+    copy(uid);
+  }
 </script>
 
 <style>
@@ -61,11 +69,11 @@
   .open-settings-btn {
     position: absolute;
     top: 34px;
-    right: 180px;
+    right: 50px;
     color: #fff;
     width: 30px;
     height: 30px;
-    color: #b3ff00;
+    color: #fde931;
     cursor: pointer;
     z-index: 2;
     font-size: 20px;
@@ -114,6 +122,41 @@
     font-size: 3rem;
     margin: 40px;
     box-shadow: 0 0 10px #000;
+    position: relative;
+  }
+
+  .uid-label span {
+    position: absolute;
+    font-size: 0.9rem;
+    color: #ccc;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 5px 7px;
+    background-color: rgb(24, 24, 24);
+    border-radius: 5px;
+    top: 35px;
+    width: 110px;
+    right: -140px;
+    box-shadow: 0 0 10px #000;
+    transition: 0.1s cubic-bezier(0.55, 0.055, 0.675, 0.19);
+  }
+
+  .uid-label span:active {
+    transform: scale(0.9);
+  }
+
+  .uid-label span::before {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 15px 15px 15px 0;
+    border-color: transparent rgb(24, 24, 24) transparent transparent;
+    content: '';
+    display: block;
+    top: 50%;
+    transform: translateY(-50%);
+    left: -12px;
   }
 </style>
 
@@ -137,7 +180,7 @@
   {:else}
     <div style="margin: 20px;">
       <h2>Your identifier is</h2>
-      <h3 class="uid-label">{uid}</h3>
+      <h3 class="uid-label">{uid} <span on:click={handleUidClick}>{copyText}</span></h3>
       <h3>Send it to the one who wanna call you and you will get in touch</h3>
       <Splitter />
 
@@ -158,3 +201,5 @@
 {#if showDeviceSettingsPopup}
   <DeviceSettingsModal />
 {/if}
+
+<CriticalToastContainer />

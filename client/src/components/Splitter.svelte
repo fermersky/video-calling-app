@@ -8,7 +8,7 @@
     flex-direction: row;
     justify-content: center;
     align-items: center;
-    color: #b3ff00;
+    color: #fde931;
     font-size: 3rem;
     position: relative;
     padding: 30px;

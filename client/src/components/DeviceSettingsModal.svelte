@@ -1,8 +1,9 @@
 <script>
+  import { mediaStreamErrorMsg } from './../services/media-stream-error-message.js';
   import Spinner from './Spinner.svelte';
   import { isMobile } from './../services/is-mobile.js';
   import { generateConstraintsObject } from './../services/media-devices.js';
-  import { deviceSelectorPopupSubject } from './../stores.js';
+  import { deviceSelectorPopupSubject, criticalErrorSubject } from './../stores.js';
   import { fetchDevices, saveDevices } from './../services/local-storage.js';
   import Button from './Button.svelte';
   import { getUserMedia, getMediaDevices } from '../services/media-devices.js';
@@ -17,19 +18,26 @@
   let selectedCamera, selectedMicrophone, selectedSpeaker;
 
   onMount(async () => {
-    const alreadySelectedDevices = fetchDevices();
+    try {
+      const alreadySelectedDevices = fetchDevices();
 
-    if (alreadySelectedDevices) {
-      selectedCamera = alreadySelectedDevices.selectedCamera;
-      selectedMicrophone = alreadySelectedDevices.selectedMicrophone;
+      if (alreadySelectedDevices) {
+        selectedCamera = alreadySelectedDevices.selectedCamera;
+        selectedMicrophone = alreadySelectedDevices.selectedMicrophone;
+      }
+
+      _subscribeOnEscapeClick();
+      _subscribeOnOutsideClick();
+
+      await _displayUserVideo();
+      await _initializeDeviceLists();
+      _initializeSelectedDevices();
+    } catch (er) {
+      const msg = mediaStreamErrorMsg(er.name);
+      criticalErrorSubject.update((_) => msg);
+
+      deviceSelectorPopupSubject.update((_) => false);
     }
-
-    _subscribeOnEscapeClick();
-    _subscribeOnOutsideClick();
-
-    await _displayUserVideo();
-    await _initializeDeviceLists();
-    _initializeSelectedDevices();
   });
 
   const _escapeButtonListener = (e) => {
@@ -64,7 +72,9 @@
 
   const _displayUserVideo = async () => {
     const videoEl = document.getElementById('video');
-    stream = await getUserMedia(generateConstraintsObject(selectedCamera, selectedMicrophone));
+    const constraints = generateConstraintsObject(selectedCamera, selectedMicrophone);
+
+    stream = await getUserMedia(constraints);
     videoEl.srcObject = stream;
   };
 
