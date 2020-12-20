@@ -2,7 +2,7 @@
   import CriticalToastContainer from './components/CriticalToastContainer.svelte';
   import { copy } from './services/copy.js';
   import Button from './components/Button.svelte';
-  import { deviceSelectorPopupSubject, userInfoSubject } from './stores.js';
+  import { deviceSelectorPopupSubject, userInfoSubject, criticalErrorSubject } from './stores.js';
   import DeviceSettingsModal from './components/DeviceSettingsModal.svelte';
   import { on, emit } from './services/socket.service';
   import { fetchUserDetails, saveUserDetails } from './services/local-storage';
@@ -31,7 +31,15 @@
     saveUserDetails(data);
   };
 
+  const handleIncomingCall = (data) => {
+    console.warn('you have a call from ', data);
+  };
+
   on('welcome', handleWelcome);
+  on('incoming-call', handleIncomingCall);
+  on('user-is-not-joined', () => {
+    criticalErrorSubject.update((_) => 'User is not joined yet or identifier is not correct.');
+  });
 
   userInfoSubject.subscribe((val) => (username = val?.name));
 

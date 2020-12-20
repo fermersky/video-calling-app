@@ -23,6 +23,7 @@
 
     setTimeout(() => {
       _unshiftError();
+      criticalErrorSubject.set('');
     }, 4000);
   };
 

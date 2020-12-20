@@ -4,7 +4,7 @@
 
 <style>
   .critical-toast {
-    padding: 5px 10px;
+    padding: 5px 15px;
     background-color: tomato;
     color: #fff;
     border-radius: 10px;

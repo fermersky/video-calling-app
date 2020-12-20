@@ -9,7 +9,7 @@ import {
 } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
 import { ConnectedUsersService } from './connected-users.service';
-import { IOffer, IUser } from './interfaces';
+import { IOffer, ITryCallSignature, IUser } from './interfaces';
 
 @WebSocketGateway()
 export class WebsocketsEventsGateway implements OnGatewayDisconnect {
@@ -19,15 +19,28 @@ export class WebsocketsEventsGateway implements OnGatewayDisconnect {
 
   @SubscribeMessage('join')
   onJoin(@MessageBody() name: string, @ConnectedSocket() client: Socket) {
-    const user: IUser = { name, uid: this.socketIdToUid(client.id) };
+    const user: IUser = {
+      name,
+      socketId: client.id,
+      uid: this.socketIdToUid(client.id),
+    };
 
     this._users.push(user);
     client.emit('welcome', user);
   }
 
   @SubscribeMessage('try-call')
-  onTryCall(@MessageBody() data: any, @ConnectedSocket() client: Socket) {
-    console.warn(data);
+  onTryCall(
+    @MessageBody() data: ITryCallSignature,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const receiver = this._users.getById(data.participantUid);
+
+    if (receiver) {
+      return client.to(receiver.socketId).emit('incoming-call', data);
+    }
+
+    return client.emit('user-is-not-joined');
   }
 
   @SubscribeMessage('video-offer')
