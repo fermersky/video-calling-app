@@ -107,21 +107,6 @@
     justify-content: center;
   }
 
-  @media only screen and (max-width: 600px) {
-    .join-form {
-      flex-direction: column;
-    }
-
-    .open-settings-btn {
-      left: 50%;
-      transform: translateX(-50%);
-    }
-
-    h1 {
-      margin-top: 100px;
-    }
-  }
-
   .uid-label {
     background: rgb(27, 27, 27);
     display: inline-block;
@@ -166,6 +151,40 @@
     transform: translateY(-50%);
     left: -12px;
   }
+
+  .uid-block {
+    margin: 20px;
+  }
+
+  @media only screen and (max-width: 600px) {
+    .join-form {
+      flex-direction: column;
+    }
+
+    .open-settings-btn {
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    h1 {
+      margin-top: 100px;
+    }
+
+    .uid-label {
+      margin-bottom: 70px;
+    }
+
+    .uid-label span {
+      display: inline-table;
+      margin: 77px 8px;
+      left: 0;
+      bottom: 0;
+    }
+
+    .uid-label span::before {
+      display: none;
+    }
+  }
 </style>
 
 <main>
@@ -186,7 +205,7 @@
       </form>
     </div>
   {:else}
-    <div style="margin: 20px;">
+    <div class="uid-block">
       <h2>Your identifier is</h2>
       <h3 class="uid-label">{uid} <span on:click={handleUidClick}>{copyText}</span></h3>
       <h3>Send it to the one who wanna call you and you will get in touch</h3>
