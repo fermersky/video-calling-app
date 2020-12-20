@@ -9,7 +9,7 @@ import {
 } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
 import { ConnectedUsersService } from './connected-users.service';
-import { IOffer, ITryCallSignature, IUser } from './interfaces';
+import { IOffer, ICallSignature, IUser } from './interfaces';
 
 @WebSocketGateway()
 export class WebsocketsEventsGateway implements OnGatewayDisconnect {
@@ -31,16 +31,40 @@ export class WebsocketsEventsGateway implements OnGatewayDisconnect {
 
   @SubscribeMessage('try-call')
   onTryCall(
-    @MessageBody() data: ITryCallSignature,
+    @MessageBody() data: ICallSignature,
     @ConnectedSocket() client: Socket,
   ) {
-    const receiver = this._users.getById(data.participantUid);
+    const receiver = this._users.getById(data.targetUid);
 
-    if (receiver) {
+    if (receiver && receiver.uid !== data.initiatorUid) {
       return client.to(receiver.socketId).emit('incoming-call', data);
     }
 
     return client.emit('user-is-not-joined');
+  }
+
+  @SubscribeMessage('accept-call')
+  onAcceptCall(
+    @MessageBody() data: ICallSignature,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const receiver = this._users.getById(data.targetUid);
+
+    if (receiver && receiver.uid !== data.initiatorUid) {
+      return client.to(receiver.socketId).emit('accept-call', data);
+    }
+  }
+
+  @SubscribeMessage('drop-call')
+  async onDropCall(
+    @MessageBody() data: ICallSignature,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const receiver = this._users.getById(data.targetUid);
+
+    if (receiver && receiver.uid !== data.initiatorUid) {
+      return client.to(receiver.socketId).emit('drop-call', data);
+    }
   }
 
   @SubscribeMessage('video-offer')

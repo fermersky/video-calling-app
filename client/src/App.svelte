@@ -4,11 +4,12 @@
   import Button from './components/Button.svelte';
   import { deviceSelectorPopupSubject, userInfoSubject, criticalErrorSubject } from './stores.js';
   import DeviceSettingsModal from './components/DeviceSettingsModal.svelte';
-  import { on, emit } from './services/socket.service';
+  import { on, emit, off } from './services/socket.service';
   import { fetchUserDetails, saveUserDetails } from './services/local-storage';
   import { onMount } from 'svelte';
   import Emoji from './components/Emoji.svelte';
   import Splitter from './components/Splitter.svelte';
+  import IncomingCall from './components/IncomingCall.svelte';
 
   let showDeviceSettingsPopup;
   let username;
@@ -16,6 +17,8 @@
   let uid;
   let participantUid;
   let copyText = 'Click to copy';
+
+  let callerData;
 
   $: callButtonDisabled = !(participantUid && participantUid.length === 4);
 
@@ -32,7 +35,8 @@
   };
 
   const handleIncomingCall = (data) => {
-    console.warn('you have a call from ', data);
+    console.warn(data);
+    callerData = data;
   };
 
   on('welcome', handleWelcome);
@@ -56,12 +60,37 @@
   }
 
   function handleStartCall() {
-    emit('try-call', { username, participantUid });
+    emit('try-call', { username, targetUid: participantUid, initiatorUid: uid });
+
+    on('accept-call', () => {
+      alert('call accepted');
+    });
+
+    on('drop-call', () => {
+      criticalErrorSubject.update((_) => 'Participant has dropped the call');
+      callerData = null;
+
+      off('accept-call');
+      off('drop-call');
+    });
   }
 
   function handleUidClick() {
     copyText = 'Copied';
     copy(uid);
+  }
+
+  function handleAcceptCall() {
+    emit('accept-call', { username, targetUid: callerData.initiatorUid, initiatorUid: uid });
+  }
+
+  function handleDropCall() {
+    emit('drop-call', { username, targetUid: callerData.initiatorUid, initiatorUid: uid });
+
+    callerData = null;
+
+    off('accept-call');
+    off('drop-call');
   }
 </script>
 
@@ -230,3 +259,7 @@
 {/if}
 
 <CriticalToastContainer />
+
+{#if callerData}
+  <IncomingCall on:onAccept={handleAcceptCall} on:onDrop={handleDropCall} username={callerData.username} />
+{/if}

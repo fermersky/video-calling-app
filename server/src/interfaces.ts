@@ -10,7 +10,8 @@ export interface IOffer {
   target: string;
 }
 
-export interface ITryCallSignature {
+export interface ICallSignature {
   username: string;
-  participantUid: string;
+  initiatorUid: string;
+  targetUid: string;
 }

@@ -9,12 +9,10 @@ export class ConnectedUsersService {
 
   push(user: IUser): void {
     this._users.push(user);
-    console.log(this._users);
   }
 
   remove(uid: string): void {
     this._users = this._users.filter((u) => u.uid !== uid);
-    console.log(this._users);
   }
 
   getAll(): IUser[] {

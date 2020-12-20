@@ -4,6 +4,10 @@ export const on = (event, fn) => {
   socket.on(event, fn);
 };
 
+export const off = (event) => {
+  socket.off(event);
+};
+
 export const emit = (event, data) => {
   socket.emit(event, data);
 };
