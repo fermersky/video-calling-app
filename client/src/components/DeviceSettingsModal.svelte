@@ -148,13 +148,20 @@
   }
 
   async function onCameraSelect({ detail }) {
-    const cameraId = detail;
-    selectedCamera = _findDeviceById(distinct(cameras), cameraId);
+    try {
+      const cameraId = detail;
+      selectedCamera = _findDeviceById(distinct(cameras), cameraId);
 
-    _stopStreamTracks();
+      _stopStreamTracks();
 
-    stream = await getUserMedia(generateConstraintsObject(selectedCamera, selectedMicrophone));
-    video.srcObject = stream;
+      stream = await getUserMedia(generateConstraintsObject(selectedCamera, selectedMicrophone));
+      video.srcObject = stream;
+    } catch (er) {
+      const msg = mediaStreamErrorMsg(er.name);
+      criticalErrorSubject.update((_) => msg);
+
+      deviceSelectorPopupSubject.update((_) => false);
+    }
   }
 
   function onMicrophoneSelect({ detail }) {
