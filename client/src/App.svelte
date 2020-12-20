@@ -10,13 +10,13 @@
   import Emoji from './components/Emoji.svelte';
   import Splitter from './components/Splitter.svelte';
   import IncomingCall from './components/IncomingCall.svelte';
+  import Call from './components/Call.svelte';
 
-  let showDeviceSettingsPopup;
-  let username;
-  let joined = false;
-  let uid;
-  let participantUid;
+  let showDeviceSettingsPopup, username, uid, participantUid;
   let copyText = 'Click to copy';
+  let joined = false,
+    callAccepted = true,
+    incomingCall = false;
 
   let callerData;
 
@@ -35,7 +35,7 @@
   };
 
   const handleIncomingCall = (data) => {
-    console.warn(data);
+    incomingCall = true;
     callerData = data;
   };
 
@@ -62,13 +62,16 @@
   function handleStartCall() {
     emit('try-call', { username, targetUid: participantUid, initiatorUid: uid });
 
-    on('accept-call', () => {
-      alert('call accepted');
+    on('accept-call', (data) => {
+      callAccepted = true;
+      incomingCall = false;
+      callerData = data;
     });
 
     on('drop-call', () => {
       criticalErrorSubject.update((_) => 'Participant has dropped the call');
       callerData = null;
+      incomingCall = false;
 
       off('accept-call');
       off('drop-call');
@@ -81,6 +84,8 @@
   }
 
   function handleAcceptCall() {
+    callAccepted = true;
+    incomingCall = false;
     emit('accept-call', { username, targetUid: callerData.initiatorUid, initiatorUid: uid });
   }
 
@@ -88,6 +93,7 @@
     emit('drop-call', { username, targetUid: callerData.initiatorUid, initiatorUid: uid });
 
     callerData = null;
+    incomingCall = false;
 
     off('accept-call');
     off('drop-call');
@@ -249,9 +255,11 @@
     </div>
   {/if}
 
-  <span on:click={toggleDevicesSettingsPopup} class="open-settings-btn">
-    {#if showDeviceSettingsPopup}<i class="fas fa-times" />{:else}<i class="fas fa-cog" />{/if}
-  </span>
+  {#if !callAccepted}
+    <span on:click={toggleDevicesSettingsPopup} class="open-settings-btn">
+      {#if showDeviceSettingsPopup}<i class="fas fa-times" />{:else}<i class="fas fa-cog" />{/if}
+    </span>
+  {/if}
 </main>
 
 {#if showDeviceSettingsPopup}
@@ -260,6 +268,11 @@
 
 <CriticalToastContainer />
 
-{#if callerData}
+{#if incomingCall}
   <IncomingCall on:onAccept={handleAcceptCall} on:onDrop={handleDropCall} username={callerData.username} />
+{/if}
+
+{#if callAccepted}
+  <Call />
+  <!-- <Call {uid} participantUid={callerData.initiatorUid} username={callerData.username} /> -->
 {/if}

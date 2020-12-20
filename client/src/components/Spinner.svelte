@@ -36,7 +36,7 @@
   }
 </style>
 
-<div class="lds-ripple">
+<div {...$$props} class="lds-ripple">
   <div />
   <div />
 </div>
