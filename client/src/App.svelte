@@ -15,7 +15,8 @@
   let showDeviceSettingsPopup, username, uid, participantUid;
   let copyText = 'Click to copy';
   let joined = false,
-    callAccepted = true,
+    callAccepted = false,
+    initiator = false,
     incomingCall = false;
 
   let callerData;
@@ -60,6 +61,8 @@
   }
 
   function handleStartCall() {
+    initiator = true;
+
     emit('try-call', { username, targetUid: participantUid, initiatorUid: uid });
 
     on('accept-call', (data) => {
@@ -72,6 +75,7 @@
       criticalErrorSubject.update((_) => 'Participant has dropped the call');
       callerData = null;
       incomingCall = false;
+      initiator = false;
 
       off('accept-call');
       off('drop-call');
@@ -86,6 +90,7 @@
   function handleAcceptCall() {
     callAccepted = true;
     incomingCall = false;
+    initiator = false;
     emit('accept-call', { username, targetUid: callerData.initiatorUid, initiatorUid: uid });
   }
 
@@ -273,6 +278,6 @@
 {/if}
 
 {#if callAccepted}
-  <Call />
-  <!-- <Call {uid} participantUid={callerData.initiatorUid} username={callerData.username} /> -->
+  <Call {initiator} {uid} participantUid={callerData.initiatorUid} username={callerData.username} />
+  <!-- <Call initiator={true} uid={'123'} /> -->
 {/if}

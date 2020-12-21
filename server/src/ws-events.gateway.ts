@@ -9,7 +9,13 @@ import {
 } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
 import { ConnectedUsersService } from './connected-users.service';
-import { IOffer, ICallSignature, IUser } from './interfaces';
+import {
+  IOffer,
+  ICallSignature,
+  IUser,
+  IAnswer,
+  ICandidate,
+} from './interfaces';
 
 @WebSocketGateway()
 export class WebsocketsEventsGateway implements OnGatewayDisconnect {
@@ -37,7 +43,7 @@ export class WebsocketsEventsGateway implements OnGatewayDisconnect {
     const receiver = this._users.getById(data.targetUid);
 
     if (receiver && receiver.uid !== data.initiatorUid) {
-      return client.to(receiver.socketId).emit('incoming-call', data);
+      return this.server.to(receiver.socketId).emit('incoming-call', data);
     }
 
     return client.emit('user-is-not-joined');
@@ -51,7 +57,7 @@ export class WebsocketsEventsGateway implements OnGatewayDisconnect {
     const receiver = this._users.getById(data.targetUid);
 
     if (receiver && receiver.uid !== data.initiatorUid) {
-      return client.to(receiver.socketId).emit('accept-call', data);
+      return this.server.to(receiver.socketId).emit('accept-call', data);
     }
   }
 
@@ -63,13 +69,45 @@ export class WebsocketsEventsGateway implements OnGatewayDisconnect {
     const receiver = this._users.getById(data.targetUid);
 
     if (receiver && receiver.uid !== data.initiatorUid) {
-      return client.to(receiver.socketId).emit('drop-call', data);
+      return this.server.to(receiver.socketId).emit('drop-call', data);
     }
   }
 
   @SubscribeMessage('video-offer')
-  async onChat(@MessageBody() data: IOffer, @ConnectedSocket() client: Socket) {
-    console.log(data);
+  async onVideoOffer(
+    @MessageBody() data: IOffer,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const receiver = this._users.getById(data.targetUid);
+    console.log(receiver, this._users.getAll());
+
+    if (receiver && receiver.uid !== data.initiatorUid) {
+      return this.server.to(receiver.socketId).emit('video-offer', data);
+    }
+  }
+
+  @SubscribeMessage('video-answer')
+  async onVideoAnswer(
+    @MessageBody() data: IAnswer,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const receiver = this._users.getById(data.targetUid);
+
+    if (receiver && receiver.uid !== data.initiatorUid) {
+      return this.server.to(receiver.socketId).emit('video-answer', data);
+    }
+  }
+
+  @SubscribeMessage('ice-candidate')
+  async onIceCandidate(
+    @MessageBody() data: ICandidate,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const receiver = this._users.getById(data.targetUid);
+
+    if (receiver && receiver.uid !== data.initiatorUid) {
+      return this.server.to(receiver.socketId).emit('ice-candidate', data);
+    }
   }
 
   handleDisconnect(client: Socket) {
