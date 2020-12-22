@@ -52,62 +52,48 @@ export class WebsocketsEventsGateway implements OnGatewayDisconnect {
   @SubscribeMessage('accept-call')
   onAcceptCall(
     @MessageBody() data: ICallSignature,
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() socket: Socket,
   ) {
-    const receiver = this._users.getById(data.targetUid);
-
-    if (receiver && receiver.uid !== data.initiatorUid) {
-      return this.server.to(receiver.socketId).emit('accept-call', data);
-    }
+    this._findTargetAndEmit('accept-call', data, socket);
   }
 
   @SubscribeMessage('drop-call')
   async onDropCall(
     @MessageBody() data: ICallSignature,
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() socket: Socket,
   ) {
-    const receiver = this._users.getById(data.targetUid);
-
-    if (receiver && receiver.uid !== data.initiatorUid) {
-      return this.server.to(receiver.socketId).emit('drop-call', data);
-    }
+    this._findTargetAndEmit('drop-call', data, socket);
   }
 
   @SubscribeMessage('video-offer')
   async onVideoOffer(
     @MessageBody() data: IOffer,
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() socket: Socket,
   ) {
-    const receiver = this._users.getById(data.targetUid);
-    console.log(receiver, this._users.getAll());
-
-    if (receiver && receiver.uid !== data.initiatorUid) {
-      console.log('offer sent');
-      return this.server.to(receiver.socketId).emit('video-offer', data);
-    }
+    this._findTargetAndEmit('video-offer', data, socket);
   }
 
   @SubscribeMessage('video-answer')
   async onVideoAnswer(
     @MessageBody() data: IAnswer,
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() socket: Socket,
   ) {
-    const receiver = this._users.getById(data.targetUid);
-
-    if (receiver && receiver.uid !== data.initiatorUid) {
-      return this.server.to(receiver.socketId).emit('video-answer', data);
-    }
+    this._findTargetAndEmit('video-answer', data, socket);
   }
 
   @SubscribeMessage('ice-candidate')
   async onIceCandidate(
     @MessageBody() data: ICandidate,
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() socket: Socket,
   ) {
+    this._findTargetAndEmit('ice-candidate', data, socket);
+  }
+
+  private _findTargetAndEmit(event, data, socket: Socket) {
     const receiver = this._users.getById(data.targetUid);
 
     if (receiver && receiver.uid !== data.initiatorUid) {
-      return this.server.to(receiver.socketId).emit('ice-candidate', data);
+      return socket.to(receiver.socketId).emit(event, data);
     }
   }
 

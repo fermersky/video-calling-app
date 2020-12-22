@@ -3,6 +3,6 @@ export const createLogger = (...fns) => {
 };
 
 export const rtcLog = createLogger((x) => {
-  console.log(`%c👉👈 ${x}`, `color: #2dd713; font-weight: bold; font-size: 0.9rem; `);
+  console.log(`%c👉👈 (webrtc) ${x}`, `color: #2dd713; font-weight: bold; font-size: 0.9rem; `);
   return x;
 });

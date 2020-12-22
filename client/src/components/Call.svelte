@@ -17,6 +17,8 @@
   let yourVideoStream;
   let peer;
 
+  let offerInterval;
+
   const _generateContraints = () => {
     const devices = fetchDevices();
 
@@ -59,8 +61,11 @@
           return peer.setLocalDescription(offer);
         })
         .then(() => {
-          emit('video-offer', { initiatorUid: uid, targetUid: participantUid, sdp: peer.localDescription });
-          rtcLog('offer sent to another peer');
+          // sending offer until another peer answers
+          offerInterval = setInterval(() => {
+            emit('video-offer', { initiatorUid: uid, targetUid: participantUid, sdp: peer.localDescription });
+            rtcLog('offer sent to another peer');
+          }, 1000);
         });
     };
 
@@ -68,6 +73,7 @@
 
     on('video-answer', (data) => {
       rtcLog('got answer from another peer');
+      clearInterval(offerInterval);
 
       peer.setRemoteDescription(new RTCSessionDescription(data.sdp));
     });
@@ -107,9 +113,9 @@
         .then(() => {
           emit('video-answer', { initiatorUid: uid, targetUid: participantUid, sdp: peer.localDescription });
         });
-    });
 
-    _bindCommonEventListeners(peer);
+      _bindCommonEventListeners(peer);
+    });
   };
 
   const _bindCommonEventListeners = (peer) => {
@@ -121,9 +127,6 @@
 
     peer.onicecandidate = (e) => {
       if (e.candidate) {
-        rtcLog('ice-candidate - emitted');
-        console.log(e.candidate);
-
         emit('ice-candidate', { initiatorUid: uid, targetUid: participantUid, candidate: e.candidate });
       }
     };
@@ -131,7 +134,6 @@
     on('ice-candidate', (data) => {
       if (data.candidate) {
         rtcLog('ice-candidate - received');
-        console.log(data.candidate);
 
         peer.addIceCandidate(new RTCIceCandidate(data.candidate));
       }
@@ -147,13 +149,11 @@
 
       peer = _createPeer();
 
-      if (initiator) {
-        _asOfferer(peer);
-      } else {
+      if (!initiator) {
         _asWaiter(peer);
+      } else {
+        _asOfferer(peer);
       }
-
-      // await _attachCommonEventListenersToPeer();
     } catch (er) {
       const msg = mediaStreamErrorMsg(er.name);
       criticalErrorSubject.update((_) => msg);
@@ -161,6 +161,10 @@
       deviceSelectorPopupSubject.update((_) => false);
     }
   });
+
+  function stopVideo() {
+    yourVideoStream.getVideoTracks()[0].enabled = false;
+  }
 
   onDestroy(() => {
     _stopLocalStream();
@@ -259,8 +263,8 @@
       {/if}
     </div>
 
-    <div class="participant-video-container"><video id="participantVideo" autoplay /></div>
+    <div class="participant-video-container"><video id="participantVideo" autoplay muted={false} /></div>
 
-    <div class="call-menu" />
+    <div class="call-menu"><button on:click={stopVideo}>Stop Video</button></div>
   </div>
 </div>
