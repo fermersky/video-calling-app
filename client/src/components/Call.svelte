@@ -7,6 +7,7 @@
   import { fetchDevices } from '../services/local-storage.js';
   import { iceServers } from '../ice-servers';
   import { emit, on } from '../services/socket.service.js';
+  import { rtcLog } from '../services/logger.js';
 
   export let uid;
   export let participantUid;
@@ -42,64 +43,62 @@
 
   const _createPeer = () => new RTCPeerConnection({ iceServers: iceServers });
 
-  const _createPeerAndSendOffer = async () => {
-    peer = _createPeer();
-
+  const _addTracksToPeer = (peer) => {
     yourVideoStream.getTracks().map((track) => {
       peer.addTrack(track, yourVideoStream);
-    });
-
-    // peer.onnegotiationneeded = async () => {
-    peer
-      .createOffer()
-      .then((offer) => {
-        return peer.setLocalDescription(offer);
-      })
-      .then(() => {
-        console.warn('offer has been sended');
-        emit('video-offer', { initiatorUid: uid, targetUid: participantUid, sdp: peer.localDescription });
-      });
-    // };
-
-    peer.ontrack = (event) => {
-      console.warn('I received a new track');
-
-      document.getElementById('participantVideo').srcObject = event.streams[0];
-    };
-
-    peer.onicecandidate = (e) => {
-      if (e.candidate) {
-        emit('ice-candidate', { initiatorUid: uid, targetUid: participantUid, candidate: e.candidate });
-      }
-    };
-
-    on('ice-candidate', (data) => {
-      if (data.candidate) {
-        console.warn(data.candidate);
-        peer.addIceCandidate(new RTCIceCandidate(data.candidate));
-      }
-    });
-
-    on('video-answer', (data) => {
-      peer.setRemoteDescription(new RTCSessionDescription(data.sdp));
-      console.warn('caller handled video-answer');
     });
   };
 
-  const _createPeerAndWaitOffer = () => {
-    peer = _createPeer();
+  const _asOfferer = async (peer) => {
+    _addTracksToPeer(peer);
 
-    yourVideoStream.getTracks().map((track) => {
-      peer.addTrack(track, yourVideoStream);
+    peer.onnegotiationneeded = async () => {
+      peer
+        .createOffer()
+        .then((offer) => {
+          return peer.setLocalDescription(offer);
+        })
+        .then(() => {
+          emit('video-offer', { initiatorUid: uid, targetUid: participantUid, sdp: peer.localDescription });
+          rtcLog('offer sent to another peer');
+        });
+    };
+
+    _bindCommonEventListeners(peer);
+
+    on('video-answer', (data) => {
+      rtcLog('got answer from another peer');
+
+      peer.setRemoteDescription(new RTCSessionDescription(data.sdp));
     });
 
+    // code that dynamically changes stream source
+    // setTimeout(async () => {
+    //   const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    //   _attachStreamToVideoElement('yourVideo', stream);
+
+    //   peer.getSenders().map((sender) => {
+    //     console.log(sender);
+
+    //     stream.getVideoTracks().forEach(function (track) {
+    //       const sender = peer.getSenders().find(function (s) {
+    //         return s.track.kind == track.kind;
+    //       });
+    //       sender.replaceTrack(track);
+    //     });
+    //   });
+    // }, 10000);
+  };
+
+  const _asWaiter = (peer) => {
+    _addTracksToPeer(peer);
+
     on('video-offer', async (data) => {
-      console.warn('I have an offer');
+      rtcLog('received offer from another peer');
+
       peer
         .setRemoteDescription(new RTCSessionDescription(data.sdp))
         .then(() => {
-          console.warn('I have an offer, ', data);
-
           return peer.createAnswer();
         })
         .then((answer) => {
@@ -108,28 +107,36 @@
         .then(() => {
           emit('video-answer', { initiatorUid: uid, targetUid: participantUid, sdp: peer.localDescription });
         });
-
-      peer.ontrack = (event) => {
-        console.warn('I received a new track');
-        document.getElementById('participantVideo').srcObject = event.streams[0];
-      };
-
-      peer.onicecandidate = (e) => {
-        if (e.candidate) {
-          emit('ice-candidate', { initiatorUid: uid, targetUid: participantUid, candidate: e.candidate });
-        }
-      };
-
-      on('ice-candidate', (data) => {
-        if (data.candidate) {
-          console.warn(data.candidate);
-          peer.addIceCandidate(new RTCIceCandidate(data.candidate));
-        }
-      });
     });
+
+    _bindCommonEventListeners(peer);
   };
 
-  const _attachCommonEventListenersToPeer = () => {};
+  const _bindCommonEventListeners = (peer) => {
+    peer.ontrack = (event) => {
+      rtcLog('tracks came from another peer');
+
+      document.getElementById('participantVideo').srcObject = event.streams[0];
+    };
+
+    peer.onicecandidate = (e) => {
+      if (e.candidate) {
+        rtcLog('ice-candidate - emitted');
+        console.log(e.candidate);
+
+        emit('ice-candidate', { initiatorUid: uid, targetUid: participantUid, candidate: e.candidate });
+      }
+    };
+
+    on('ice-candidate', (data) => {
+      if (data.candidate) {
+        rtcLog('ice-candidate - received');
+        console.log(data.candidate);
+
+        peer.addIceCandidate(new RTCIceCandidate(data.candidate));
+      }
+    });
+  };
 
   onMount(async () => {
     try {
@@ -138,10 +145,12 @@
 
       _attachStreamToVideoElement('yourVideo', yourVideoStream);
 
+      peer = _createPeer();
+
       if (initiator) {
-        await _createPeerAndSendOffer();
+        _asOfferer(peer);
       } else {
-        await _createPeerAndWaitOffer();
+        _asWaiter(peer);
       }
 
       // await _attachCommonEventListenersToPeer();
@@ -225,7 +234,6 @@
   #participantVideo {
     height: 100%;
     z-index: 1;
-    border-radius: 20px;
   }
 
   .call-menu {
@@ -251,7 +259,7 @@
       {/if}
     </div>
 
-    <div class="participant-video-container"><video muted id="participantVideo" autoplay /></div>
+    <div class="participant-video-container"><video id="participantVideo" autoplay /></div>
 
     <div class="call-menu" />
   </div>

@@ -82,6 +82,7 @@ export class WebsocketsEventsGateway implements OnGatewayDisconnect {
     console.log(receiver, this._users.getAll());
 
     if (receiver && receiver.uid !== data.initiatorUid) {
+      console.log('offer sent');
       return this.server.to(receiver.socketId).emit('video-offer', data);
     }
   }
