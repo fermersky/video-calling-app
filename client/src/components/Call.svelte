@@ -164,6 +164,28 @@
 
   function stopVideo() {
     yourVideoStream.getVideoTracks()[0].enabled = false;
+
+    // without this delay remote video freezes and participant can't see frozen video
+    setTimeout(() => {
+      yourVideoStream.getVideoTracks()[0].stop();
+      yourVideoStream.removeTrack(yourVideoStream.getVideoTracks()[0]);
+    }, 150);
+
+    setTimeout(async () => {
+      const newStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+
+      peer.getSenders().map((sender) => {
+        newStream.getVideoTracks().forEach(function (track) {
+          const sender = peer.getSenders().find(function (s) {
+            return s.track.kind == track.kind;
+          });
+          sender.replaceTrack(track);
+          yourVideoStream.addTrack(newStream.getVideoTracks()[0]);
+        });
+      });
+      _attachStreamToVideoElement('yourVideo', yourVideoStream);
+      // newStream.getTracks().map((track) => track.stop());
+    }, 10000);
   }
 
   onDestroy(() => {
