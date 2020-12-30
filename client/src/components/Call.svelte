@@ -14,13 +14,18 @@
   export let username;
   export let initiator;
 
-  let yourVideoStream;
-  let peer;
-
-  let offerInterval;
+  let devices, // {selectedCamera, selectedMicrophone, selectedSpeaker}
+    yourVideoStream,
+    yourDisplayStream,
+    yourDisplayStreamSender,
+    peer,
+    offerInterval,
+    screenSharing = false,
+    audioOff = false,
+    videoOff = false;
 
   const _generateContraints = () => {
-    const devices = fetchDevices();
+    devices = fetchDevices();
 
     return generateConstraintsObject(devices?.selectedCamera, devices?.selectedMicrophone);
   };
@@ -147,13 +152,13 @@
 
       _attachStreamToVideoElement('yourVideo', yourVideoStream);
 
-      peer = _createPeer();
+      // peer = _createPeer();
 
-      if (!initiator) {
-        _asWaiter(peer);
-      } else {
-        _asOfferer(peer);
-      }
+      // if (!initiator) {
+      //   _asWaiter(peer);
+      // } else {
+      //   _asOfferer(peer);
+      // }
     } catch (er) {
       const msg = mediaStreamErrorMsg(er.name);
       criticalErrorSubject.update((_) => msg);
@@ -162,31 +167,70 @@
     }
   });
 
-  function stopVideo() {
-    yourVideoStream.getVideoTracks()[0].enabled = false;
+  async function toggleMyVideo() {
+    // if (videoOff) {
+    //   const newStream = await navigator.mediaDevices.getUserMedia(
+    //     generateConstraintsObject(devices?.selectedCamera, false)
+    //   );
 
-    // without this delay remote video freezes and participant can't see frozen video
-    setTimeout(() => {
-      yourVideoStream.getVideoTracks()[0].stop();
-      yourVideoStream.removeTrack(yourVideoStream.getVideoTracks()[0]);
-    }, 150);
+    //   peer.getSenders().map((sender) => {
+    //     newStream.getVideoTracks().forEach(function (track) {
+    //       const sender = peer.getSenders().find(function (s) {
+    //         return s.track.kind == track.kind;
+    //       });
+    //       sender.replaceTrack(track);
+    //       yourVideoStream.addTrack(newStream.getVideoTracks()[0]);
+    //     });
+    //   });
 
-    setTimeout(async () => {
-      const newStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    //   _attachStreamToVideoElement('yourVideo', yourVideoStream);
+    // } else {
+    //   yourVideoStream.getVideoTracks()[0].enabled = false;
+
+    //   setTimeout(() => {
+    //     yourVideoStream.getVideoTracks()[0].stop();
+    //     yourVideoStream.removeTrack(yourVideoStream.getVideoTracks()[0]);
+    //   }, 150);
+    // }
+
+    videoOff = !videoOff;
+  }
+
+  async function shareScreen() {
+    if (!screenSharing) {
+      screenSharing = !screenSharing;
+
+      yourDisplayStream = await navigator.mediaDevices.getDisplayMedia();
 
       peer.getSenders().map((sender) => {
-        newStream.getVideoTracks().forEach(function (track) {
+        yourDisplayStream.getVideoTracks().forEach(function (track) {
           const sender = peer.getSenders().find(function (s) {
             return s.track.kind == track.kind;
           });
           sender.replaceTrack(track);
-          yourVideoStream.addTrack(newStream.getVideoTracks()[0]);
         });
       });
-      _attachStreamToVideoElement('yourVideo', yourVideoStream);
-      // newStream.getTracks().map((track) => track.stop());
-    }, 10000);
+    } else {
+      screenSharing = !screenSharing;
+      yourDisplayStream.getTracks().map((track) => track.stop());
+
+      peer.getSenders().map((sender) => {
+        yourVideoStream.getVideoTracks().forEach(function (track) {
+          const sender = peer.getSenders().find(function (s) {
+            return s.track.kind == track.kind;
+          });
+          sender.replaceTrack(track);
+        });
+      });
+    }
   }
+
+  function toggleMyMirophone() {
+    audioOff = !audioOff;
+    yourVideoStream.getAudioTracks()[0].enabled = false;
+  }
+
+  function endCall() {}
 
   onDestroy(() => {
     _stopLocalStream();
@@ -270,8 +314,88 @@
     right: -10px;
     border-bottom-left-radius: 20px;
     border-bottom-right-radius: 20px;
-    background: #000;
-    padding: 40px;
+    background: rgb(49, 49, 49);
+    padding: 10px;
+
+    display: flex;
+    justify-content: center;
+  }
+
+  .action-button {
+    color: #ffffff;
+    border: none;
+    outline: none;
+    font-size: 1.1rem;
+    cursor: pointer;
+    border-radius: 50%;
+    background: rgb(77, 77, 77);
+    width: 50px;
+    height: 50px;
+    box-shadow: 0 0 3px rgb(29, 29, 29);
+    transition: 0.1s ease;
+    position: relative;
+    margin: 0 15px;
+  }
+
+  .action-button::after {
+    position: absolute;
+    content: '';
+    width: 0;
+    height: 2px;
+    background: #fff;
+    transform: rotate(35deg);
+    left: 14px;
+    top: 17px;
+    transition: 0.2s cubic-bezier(0.55, 0.055, 0.675, 0.19) 0.2s;
+    transform-origin: 0 0;
+    transition-property: width;
+    border-radius: 1px;
+  }
+
+  .action-button::before {
+    position: absolute;
+    content: '';
+    width: 0;
+    border-radius: 1px;
+
+    height: 2px;
+    background: rgb(77, 77, 77);
+
+    transform: rotate(35deg);
+    transform-origin: 0 0;
+
+    left: 12px;
+    top: 18px;
+    transition: width 0.2s cubic-bezier(0.55, 0.055, 0.675, 0.19) 0.2s;
+  }
+
+  .action-button:hover {
+    box-shadow: 0 0 4px rgb(0, 0, 0);
+  }
+
+  .action-button:active {
+    background: #e53935;
+  }
+
+  .mute {
+    background: #e53935;
+  }
+
+  .mute::after,
+  .mute::before {
+    width: 27px;
+  }
+
+  .mute::before {
+    background: #e53935;
+  }
+
+  .action-button__end-call {
+    background: #e53935;
+  }
+
+  .action-button__end-call i {
+    transform: rotate(225deg);
   }
 </style>
 
@@ -287,6 +411,14 @@
 
     <div class="participant-video-container"><video id="participantVideo" autoplay muted={false} /></div>
 
-    <div class="call-menu"><button on:click={stopVideo}>Stop Video</button></div>
+    <div class="call-menu">
+      <button class="action-button action-button__video" class:mute={videoOff} on:click={toggleMyVideo}>
+        <i class="fas fa-video" />
+      </button>
+      <button class="action-button action-button__end-call" on:click={endCall}> <i class="fas fa-phone" /> </button>
+      <button class="action-button action-button__audio" class:mute={audioOff} on:click={toggleMyMirophone}>
+        <i class="fas fa-microphone-alt" />
+      </button>
+    </div>
   </div>
 </div>

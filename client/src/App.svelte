@@ -277,7 +277,7 @@
   <IncomingCall on:onAccept={handleAcceptCall} on:onDrop={handleDropCall} username={callerData.username} />
 {/if}
 
-{#if callAccepted}
-  <Call {initiator} {uid} participantUid={callerData.initiatorUid} username={callerData.username} />
-  <!-- <Call initiator={true} uid={'123'} /> -->
+{#if true}
+  <!-- <Call {initiator} {uid} participantUid={callerData.initiatorUid} username={callerData.username} /> -->
+  <Call initiator={true} uid={'123'} />
 {/if}
