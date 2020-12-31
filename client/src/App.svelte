@@ -109,7 +109,7 @@
   main {
     margin: 0 auto;
     position: relative;
-    height: 100vh;
+    height: auto;
     text-align: center;
     padding: 40px;
   }
@@ -265,19 +265,19 @@
       {#if showDeviceSettingsPopup}<i class="fas fa-times" />{:else}<i class="fas fa-cog" />{/if}
     </span>
   {/if}
+
+  {#if callAccepted}
+    <Call {initiator} {uid} participantUid={callerData.initiatorUid} username={callerData.username} />
+    <!-- <Call /> -->
+  {/if}
 </main>
 
 {#if showDeviceSettingsPopup}
   <DeviceSettingsModal />
 {/if}
 
-<CriticalToastContainer />
-
 {#if incomingCall}
   <IncomingCall on:onAccept={handleAcceptCall} on:onDrop={handleDropCall} username={callerData.username} />
 {/if}
 
-{#if true}
-  <!-- <Call {initiator} {uid} participantUid={callerData.initiatorUid} username={callerData.username} /> -->
-  <Call initiator={true} uid={'123'} />
-{/if}
+<CriticalToastContainer />

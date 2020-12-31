@@ -2,6 +2,10 @@ export const getUserMedia = (constraintsObj = { video: true, audio: true }) => {
   return navigator.mediaDevices.getUserMedia(constraintsObj);
 };
 
+export const getDisplayMedia = () => {
+  return navigator.mediaDevices.getDisplayMedia();
+};
+
 export const getMediaDevices = async () => {
   const devices = await navigator.mediaDevices.enumerateDevices();
 
@@ -13,24 +17,24 @@ export const getMediaDevices = async () => {
 };
 
 export const generateConstraintsObject = (camera, microphone) => {
-  const generateDeviceConfig = device => {
+  const generateDeviceConfig = (device) => {
     if (device) {
       return {
         deviceId: {
-          exact: device.deviceId
-        }
-      }
+          exact: device.deviceId,
+        },
+      };
     }
 
     return true;
-  }
+  };
 
   return {
     video: generateDeviceConfig(camera),
-    audio: generateDeviceConfig(microphone)
-  }
-}
+    audio: generateDeviceConfig(microphone),
+  };
+};
 
 const filterByKind = (devices, kind) => {
-  return devices.filter(device => device.kind === kind);
-}
+  return devices.filter((device) => device.kind === kind);
+};

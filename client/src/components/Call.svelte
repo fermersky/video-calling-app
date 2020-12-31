@@ -1,7 +1,7 @@
 <script>
   import { mediaStreamErrorMsg } from './../services/media-stream-error-message.js';
   import Spinner from './Spinner.svelte';
-  import { generateConstraintsObject, getUserMedia } from './../services/media-devices.js';
+  import { generateConstraintsObject, getUserMedia, getDisplayMedia } from './../services/media-devices.js';
   import { criticalErrorSubject, deviceSelectorPopupSubject } from './../stores.js';
   import { onDestroy, onMount } from 'svelte';
   import { fetchDevices } from '../services/local-storage.js';
@@ -17,7 +17,6 @@
   let devices, // {selectedCamera, selectedMicrophone, selectedSpeaker}
     yourVideoStream,
     yourDisplayStream,
-    yourDisplayStreamSender,
     peer,
     offerInterval,
     screenSharing = false,
@@ -30,10 +29,10 @@
     return generateConstraintsObject(devices?.selectedCamera, devices?.selectedMicrophone);
   };
 
-  const _stopLocalStream = () => {
-    if (!yourVideoStream) return;
+  const _stopTracks = (stream) => {
+    if (!stream) return;
 
-    yourVideoStream.getTracks().map((track) => track.stop());
+    stream.getTracks().map((track) => track.stop());
   };
 
   const _attachStreamToVideoElement = (id, stream) => {
@@ -44,8 +43,7 @@
       return;
     }
 
-    console.warn('html id or stream is undefined');
-    return;
+    console.warn('html id or stream are undefined');
   };
 
   const _createPeer = () => new RTCPeerConnection({ iceServers: iceServers });
@@ -101,7 +99,7 @@
     // }, 10000);
   };
 
-  const _asWaiter = (peer) => {
+  const _asAnswerer = (peer) => {
     _addTracksToPeer(peer);
 
     on('video-offer', async (data) => {
@@ -145,20 +143,23 @@
     });
   };
 
+  const _fetchStream = async () => {
+    return getUserMedia(_generateContraints());
+  };
+
   onMount(async () => {
     try {
-      const constraints = _generateContraints();
-      yourVideoStream = await getUserMedia(constraints);
+      yourVideoStream = await _fetchStream();
 
       _attachStreamToVideoElement('yourVideo', yourVideoStream);
 
-      // peer = _createPeer();
+      peer = _createPeer();
 
-      // if (!initiator) {
-      //   _asWaiter(peer);
-      // } else {
-      //   _asOfferer(peer);
-      // }
+      if (initiator) {
+        _asOfferer(peer);
+      } else {
+        _asAnswerer(peer);
+      }
     } catch (er) {
       const msg = mediaStreamErrorMsg(er.name);
       criticalErrorSubject.update((_) => msg);
@@ -168,72 +169,64 @@
   });
 
   async function toggleMyVideo() {
-    // if (videoOff) {
-    //   const newStream = await navigator.mediaDevices.getUserMedia(
-    //     generateConstraintsObject(devices?.selectedCamera, false)
-    //   );
-
-    //   peer.getSenders().map((sender) => {
-    //     newStream.getVideoTracks().forEach(function (track) {
-    //       const sender = peer.getSenders().find(function (s) {
-    //         return s.track.kind == track.kind;
-    //       });
-    //       sender.replaceTrack(track);
-    //       yourVideoStream.addTrack(newStream.getVideoTracks()[0]);
-    //     });
-    //   });
-
-    //   _attachStreamToVideoElement('yourVideo', yourVideoStream);
-    // } else {
-    //   yourVideoStream.getVideoTracks()[0].enabled = false;
-
-    //   setTimeout(() => {
-    //     yourVideoStream.getVideoTracks()[0].stop();
-    //     yourVideoStream.removeTrack(yourVideoStream.getVideoTracks()[0]);
-    //   }, 150);
-    // }
-
     videoOff = !videoOff;
+
+    if (!videoOff) {
+      const newStream = await _fetchStream();
+
+      newStream.getVideoTracks().forEach(function (track) {
+        const sender = peer.getSenders().find(function (s) {
+          return s.track.kind == track.kind;
+        });
+
+        sender.replaceTrack(track);
+        yourVideoStream.addTrack(newStream.getVideoTracks()[0]);
+      });
+
+      _attachStreamToVideoElement('yourVideo', yourVideoStream);
+    } else {
+      yourVideoStream.getVideoTracks()[0].enabled = false;
+
+      setTimeout(() => {
+        yourVideoStream.getVideoTracks()[0].stop();
+        yourVideoStream.removeTrack(yourVideoStream.getVideoTracks()[0]);
+      }, 150);
+    }
   }
 
   async function shareScreen() {
     if (!screenSharing) {
-      screenSharing = !screenSharing;
+      yourDisplayStream = await getDisplayMedia();
 
-      yourDisplayStream = await navigator.mediaDevices.getDisplayMedia();
-
-      peer.getSenders().map((sender) => {
-        yourDisplayStream.getVideoTracks().forEach(function (track) {
-          const sender = peer.getSenders().find(function (s) {
-            return s.track.kind == track.kind;
-          });
-          sender.replaceTrack(track);
+      yourDisplayStream.getVideoTracks().forEach(function (track) {
+        const sender = peer.getSenders().find(function (s) {
+          return s.track.kind == track.kind;
         });
+        sender.replaceTrack(track);
       });
     } else {
-      screenSharing = !screenSharing;
-      yourDisplayStream.getTracks().map((track) => track.stop());
+      _stopTracks(yourDisplayStream);
 
-      peer.getSenders().map((sender) => {
-        yourVideoStream.getVideoTracks().forEach(function (track) {
-          const sender = peer.getSenders().find(function (s) {
-            return s.track.kind == track.kind;
-          });
-          sender.replaceTrack(track);
+      yourVideoStream.getVideoTracks().forEach(function (track) {
+        const sender = peer.getSenders().find(function (s) {
+          return s.track.kind == track.kind;
         });
+        sender.replaceTrack(track);
       });
     }
+
+    screenSharing = !screenSharing;
   }
 
   function toggleMyMirophone() {
     audioOff = !audioOff;
-    yourVideoStream.getAudioTracks()[0].enabled = false;
+    yourVideoStream.getAudioTracks()[0].enabled = !yourVideoStream.getAudioTracks()[0].enabled;
   }
 
   function endCall() {}
 
   onDestroy(() => {
-    _stopLocalStream();
+    _stopTracks(yourVideoStream);
   });
 </script>
 
@@ -248,7 +241,7 @@
 
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
   }
 
   .incoming {
@@ -266,7 +259,8 @@
     width: 90%;
     max-width: 1400px;
 
-    height: 90%;
+    height: 100vh;
+    max-height: 1000px;
 
     position: relative;
     overflow: hidden;
@@ -314,8 +308,8 @@
     right: -10px;
     border-bottom-left-radius: 20px;
     border-bottom-right-radius: 20px;
-    background: rgb(49, 49, 49);
-    padding: 10px;
+    background: rgba(49, 49, 49, 0);
+    padding: 20px;
 
     display: flex;
     justify-content: center;
@@ -329,12 +323,12 @@
     cursor: pointer;
     border-radius: 50%;
     background: rgb(77, 77, 77);
-    width: 50px;
-    height: 50px;
+    width: 40px;
+    height: 40px;
     box-shadow: 0 0 3px rgb(29, 29, 29);
     transition: 0.1s ease;
     position: relative;
-    margin: 0 15px;
+    margin: 0 10px;
   }
 
   .action-button::after {
@@ -344,8 +338,8 @@
     height: 2px;
     background: #fff;
     transform: rotate(35deg);
-    left: 14px;
-    top: 17px;
+    left: 12px;
+    top: 12px;
     transition: 0.2s cubic-bezier(0.55, 0.055, 0.675, 0.19) 0.2s;
     transform-origin: 0 0;
     transition-property: width;
@@ -364,8 +358,8 @@
     transform: rotate(35deg);
     transform-origin: 0 0;
 
-    left: 12px;
-    top: 18px;
+    left: 10px;
+    top: 13px;
     transition: width 0.2s cubic-bezier(0.55, 0.055, 0.675, 0.19) 0.2s;
   }
 
@@ -374,35 +368,58 @@
   }
 
   .action-button:active {
-    background: #e53935;
+    background: #ef5350;
   }
 
   .mute {
-    background: #e53935;
+    background: #ef5350;
   }
 
   .mute::after,
   .mute::before {
-    width: 27px;
+    width: 23px;
   }
 
   .mute::before {
-    background: #e53935;
+    background: #ef5350;
   }
 
   .action-button__end-call {
-    background: #e53935;
+    /* background: #ef5350; */
+  }
+
+  .action-button__end-call {
+    box-shadow: 0 0 5px #ef5350;
+    color: #ef5350;
+  }
+
+  .action-button__end-call:hover {
+    box-shadow: 0 0 8px #ef5350;
+  }
+
+  .action-button__end-call:active {
+    color: #fff;
   }
 
   .action-button__end-call i {
     transform: rotate(225deg);
+  }
+
+  .call-menu-actions {
+    background: rgba(0, 0, 0, 0.623);
+    border-radius: 30px;
+    padding: 10px;
+  }
+
+  .hidden {
+    visibility: hidden;
   }
 </style>
 
 <div class="incoming-wrap">
   <!-- {participantUid} {username} {uid} -->
   <div class="incoming">
-    <div class="yourVideo-container">
+    <div class:hidden={videoOff} class="yourVideo-container">
       <video class:shadow={yourVideoStream} id="yourVideo" autoplay muted />
       {#if !yourVideoStream}
         <Spinner style="position: absolute" />
@@ -412,13 +429,20 @@
     <div class="participant-video-container"><video id="participantVideo" autoplay muted={false} /></div>
 
     <div class="call-menu">
-      <button class="action-button action-button__video" class:mute={videoOff} on:click={toggleMyVideo}>
-        <i class="fas fa-video" />
-      </button>
-      <button class="action-button action-button__end-call" on:click={endCall}> <i class="fas fa-phone" /> </button>
-      <button class="action-button action-button__audio" class:mute={audioOff} on:click={toggleMyMirophone}>
-        <i class="fas fa-microphone-alt" />
-      </button>
+      <div class="call-menu-actions">
+        {#if !screenSharing}
+          <button class="action-button action-button__video" class:mute={videoOff} on:click={toggleMyVideo}>
+            <i class="fas fa-video" />
+          </button>
+        {/if}
+        <button class="action-button action-button__end-call" on:click={endCall}> <i class="fas fa-phone" /> </button>
+        <button class="action-button action-button__audio" class:mute={audioOff} on:click={toggleMyMirophone}>
+          <i class="fas fa-microphone-alt" />
+        </button>
+        <button class="action-button action-button__audio" on:click={shareScreen}>
+          <i class="fas fa-desktop" />
+        </button>
+      </div>
     </div>
   </div>
 </div>
