@@ -23,7 +23,7 @@
     audioOff = false,
     videoOff = false;
 
-  const _generateContraints = () => {
+  const _generateConstraints = () => {
     devices = fetchDevices();
 
     return generateConstraintsObject(devices?.selectedCamera, devices?.selectedMicrophone);
@@ -144,7 +144,7 @@
   };
 
   const _fetchStream = async () => {
-    return getUserMedia(_generateContraints());
+    return getUserMedia(_generateConstraints());
   };
 
   onMount(async () => {
@@ -218,7 +218,7 @@
     screenSharing = !screenSharing;
   }
 
-  function toggleMyMirophone() {
+  function toggleMyMicrophone() {
     audioOff = !audioOff;
     yourVideoStream.getAudioTracks()[0].enabled = !yourVideoStream.getAudioTracks()[0].enabled;
   }
@@ -436,7 +436,7 @@
           </button>
         {/if}
         <button class="action-button action-button__end-call" on:click={endCall}> <i class="fas fa-phone" /> </button>
-        <button class="action-button action-button__audio" class:mute={audioOff} on:click={toggleMyMirophone}>
+        <button class="action-button action-button__audio" class:mute={audioOff} on:click={toggleMyMicrophone}>
           <i class="fas fa-microphone-alt" />
         </button>
         <button class="action-button action-button__audio" on:click={shareScreen}>
