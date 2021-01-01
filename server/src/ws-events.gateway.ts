@@ -15,6 +15,7 @@ import {
   IUser,
   IAnswer,
   ICandidate,
+  IEventData,
 } from './interfaces';
 
 @WebSocketGateway()
@@ -89,7 +90,7 @@ export class WebsocketsEventsGateway implements OnGatewayDisconnect {
     this._findTargetAndEmit('ice-candidate', data, socket);
   }
 
-  private _findTargetAndEmit(event, data, socket: Socket) {
+  private _findTargetAndEmit(event: string, data: IEventData, socket: Socket) {
     const receiver = this._users.getById(data.targetUid);
 
     if (receiver && receiver.uid !== data.initiatorUid) {

@@ -7,7 +7,7 @@
   import { fetchDevices } from '../services/local-storage.js';
   import { iceServers } from '../ice-servers';
   import { emit, on } from '../services/socket.service.js';
-  import { rtcLog } from '../services/logger.js';
+  import { rtcError, rtcLog } from '../services/logger.js';
 
   export let uid;
   export let participantUid;
@@ -69,7 +69,8 @@
             emit('video-offer', { initiatorUid: uid, targetUid: participantUid, sdp: peer.localDescription });
             rtcLog('offer sent to another peer');
           }, 1000);
-        });
+        })
+        .catch(_onHandshakeError);
     };
 
     _bindCommonEventListeners(peer);
@@ -115,10 +116,19 @@
         })
         .then(() => {
           emit('video-answer', { initiatorUid: uid, targetUid: participantUid, sdp: peer.localDescription });
-        });
+        })
+        .catch(_onHandshakeError);
 
       _bindCommonEventListeners(peer);
     });
+  };
+
+  const _onHandshakeError = (er) => {
+    rtcError('Something went wrong during webrtc handshaking.');
+    criticalErrorSubject.update((_) => 'Something went wrong during the handshaking.');
+    criticalErrorSubject.update((_) => 'Reload a page and try again.');
+
+    console.error(er);
   };
 
   const _bindCommonEventListeners = (peer) => {
@@ -143,6 +153,15 @@
     });
   };
 
+  const _replaceTrackForPeer = (peer, stream, kind) => {
+    const track = stream.getTracks().find((t) => t.kind === kind);
+    const sender = peer.getSenders().find((s) => s.track.kind === kind);
+
+    sender.replaceTrack(track);
+
+    return track;
+  };
+
   const _fetchStream = async () => {
     return getUserMedia(_generateConstraints());
   };
@@ -163,8 +182,6 @@
     } catch (er) {
       const msg = mediaStreamErrorMsg(er.name);
       criticalErrorSubject.update((_) => msg);
-
-      deviceSelectorPopupSubject.update((_) => false);
     }
   });
 
@@ -173,15 +190,9 @@
 
     if (!videoOff) {
       const newStream = await _fetchStream();
+      const track = _replaceTrackForPeer(peer, newStream, 'video');
 
-      newStream.getVideoTracks().forEach(function (track) {
-        const sender = peer.getSenders().find(function (s) {
-          return s.track.kind == track.kind;
-        });
-
-        sender.replaceTrack(track);
-        yourVideoStream.addTrack(newStream.getVideoTracks()[0]);
-      });
+      yourVideoStream.addTrack(track);
 
       _attachStreamToVideoElement('yourVideo', yourVideoStream);
     } else {
@@ -198,21 +209,17 @@
     if (!screenSharing) {
       yourDisplayStream = await getDisplayMedia();
 
-      yourDisplayStream.getVideoTracks().forEach(function (track) {
-        const sender = peer.getSenders().find(function (s) {
-          return s.track.kind == track.kind;
-        });
-        sender.replaceTrack(track);
-      });
+      _replaceTrackForPeer(peer, yourDisplayStream, 'video');
+
+      yourDisplayStream.getVideoTracks()[0].onended = () => {
+        _stopTracks(yourDisplayStream);
+        _replaceTrackForPeer(peer, yourVideoStream, 'video');
+
+        screenSharing = false;
+      };
     } else {
       _stopTracks(yourDisplayStream);
-
-      yourVideoStream.getVideoTracks().forEach(function (track) {
-        const sender = peer.getSenders().find(function (s) {
-          return s.track.kind == track.kind;
-        });
-        sender.replaceTrack(track);
-      });
+      _replaceTrackForPeer(peer, yourVideoStream, 'video');
     }
 
     screenSharing = !screenSharing;
@@ -227,6 +234,7 @@
 
   onDestroy(() => {
     _stopTracks(yourVideoStream);
+    _stopTracks(yourDisplayStream);
   });
 </script>
 

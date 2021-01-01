@@ -1,27 +1,23 @@
-import { Socket } from 'socket.io';
-
+export interface IEventData {
+  targetUid: string;
+  initiatorUid: string;
+}
 export interface IUser {
   name: string;
   uid: string;
   socketId: string;
 }
 
-export interface IOffer {
-  initiatorUid: string;
+export interface IOffer extends IEventData {
   sdp: string;
-  targetUid: string;
 }
 
 export interface IAnswer extends IOffer {}
 
-export interface ICandidate {
-  initiatorUid: string;
+export interface ICandidate extends IEventData {
   candidate: string;
-  targetUid: string;
 }
 
-export interface ICallSignature {
+export interface ICallSignature extends IEventData {
   username: string;
-  initiatorUid: string;
-  targetUid: string;
 }
