@@ -128,6 +128,8 @@
     criticalErrorSubject.update((_) => 'Something went wrong during the handshaking.');
     criticalErrorSubject.update((_) => 'Reload a page and try again.');
 
+    clearInterval(offerInterval);
+
     console.error(er);
   };
 
@@ -206,23 +208,34 @@
   }
 
   async function shareScreen() {
-    if (!screenSharing) {
-      yourDisplayStream = await getDisplayMedia();
+    try {
+      if (!screenSharing) {
+        yourDisplayStream = await getDisplayMedia();
 
-      _replaceTrackForPeer(peer, yourDisplayStream, 'video');
+        _replaceTrackForPeer(peer, yourDisplayStream, 'video');
 
-      yourDisplayStream.getVideoTracks()[0].onended = () => {
+        // onended fires when user stops screensharing from browser toast
+        yourDisplayStream.getVideoTracks()[0].onended = () => {
+          _stopTracks(yourDisplayStream);
+          _replaceTrackForPeer(peer, yourVideoStream, 'video');
+
+          screenSharing = false;
+        };
+      } else {
         _stopTracks(yourDisplayStream);
         _replaceTrackForPeer(peer, yourVideoStream, 'video');
+      }
 
-        screenSharing = false;
-      };
-    } else {
-      _stopTracks(yourDisplayStream);
-      _replaceTrackForPeer(peer, yourVideoStream, 'video');
+      screenSharing = !screenSharing;
+    } catch (er) {
+      if (er.name === 'NotAllowedError') {
+        return criticalErrorSubject.update((_) => "You've canceled sharing screen");
+      }
+
+      criticalErrorSubject.update(
+        (_) => 'Something went wrong during a screen sharing. Your browser may not support this feature ;('
+      );
     }
-
-    screenSharing = !screenSharing;
   }
 
   function toggleMyMicrophone() {
@@ -237,6 +250,37 @@
     _stopTracks(yourDisplayStream);
   });
 </script>
+
+<div class="incoming-wrap">
+  <!-- {participantUid} {username} {uid} -->
+  <div class="incoming">
+    <div class:hidden={videoOff} class="yourVideo-container">
+      <video class:shadow={yourVideoStream} id="yourVideo" autoplay muted />
+      {#if !yourVideoStream}
+        <Spinner style="position: absolute" />
+      {/if}
+    </div>
+
+    <div class="participant-video-container"><video id="participantVideo" autoplay muted={false} /></div>
+
+    <div class="call-menu">
+      <div class="call-menu-actions">
+        {#if !screenSharing}
+          <button class="action-button action-button__video" class:mute={videoOff} on:click={toggleMyVideo}>
+            <i class="fas fa-video" />
+          </button>
+        {/if}
+        <button class="action-button action-button__end-call" on:click={endCall}> <i class="fas fa-phone" /> </button>
+        <button class="action-button action-button__audio" class:mute={audioOff} on:click={toggleMyMicrophone}>
+          <i class="fas fa-microphone-alt" />
+        </button>
+        <button class="action-button action-button__audio" on:click={shareScreen}>
+          <i class="fas fa-desktop" />
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <style>
   .incoming-wrap {
@@ -423,34 +467,3 @@
     visibility: hidden;
   }
 </style>
-
-<div class="incoming-wrap">
-  <!-- {participantUid} {username} {uid} -->
-  <div class="incoming">
-    <div class:hidden={videoOff} class="yourVideo-container">
-      <video class:shadow={yourVideoStream} id="yourVideo" autoplay muted />
-      {#if !yourVideoStream}
-        <Spinner style="position: absolute" />
-      {/if}
-    </div>
-
-    <div class="participant-video-container"><video id="participantVideo" autoplay muted={false} /></div>
-
-    <div class="call-menu">
-      <div class="call-menu-actions">
-        {#if !screenSharing}
-          <button class="action-button action-button__video" class:mute={videoOff} on:click={toggleMyVideo}>
-            <i class="fas fa-video" />
-          </button>
-        {/if}
-        <button class="action-button action-button__end-call" on:click={endCall}> <i class="fas fa-phone" /> </button>
-        <button class="action-button action-button__audio" class:mute={audioOff} on:click={toggleMyMicrophone}>
-          <i class="fas fa-microphone-alt" />
-        </button>
-        <button class="action-button action-button__audio" on:click={shareScreen}>
-          <i class="fas fa-desktop" />
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
