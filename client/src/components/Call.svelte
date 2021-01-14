@@ -14,6 +14,10 @@
   export let username;
   export let initiator;
 
+  $: videoTooltip = videoOff ? 'Unmute Video' : 'Mute Video';
+  $: audioTooltip = audioOff ? 'Unmute Audio' : 'Mute Audio';
+  $: shareTooltip = screenSharing ? 'Stop Sharing Screen' : 'Share Screen';
+
   let devices, // {selectedCamera, selectedMicrophone, selectedSpeaker}
     yourVideoStream,
     yourDisplayStream,
@@ -270,14 +274,20 @@
       <div class="call-menu-actions">
         {#if !screenSharing}
           <button class="action-button action-button__video" class:mute={videoOff} on:click={toggleMyVideo}>
+            <span class="tooltip">{videoTooltip}</span>
             <i class="fas fa-video" />
           </button>
         {/if}
-        <button class="action-button action-button__end-call" on:click={endCall}> <i class="fas fa-phone" /> </button>
+        <button class="action-button action-button__end-call" on:click={endCall}> 
+          <span class="tooltip">End Call</span>
+          <i class="fas fa-phone" />
+        </button>
         <button class="action-button action-button__audio" class:mute={audioOff} on:click={toggleMyMicrophone}>
+          <span class="tooltip">{audioTooltip}</span>
           <i class="fas fa-microphone-alt" />
         </button>
-        <button class="action-button action-button__audio" on:click={shareScreen}>
+        <button class="action-button action-button__sharing" class:sharing={screenSharing} on:click={shareScreen}>
+          <span class="tooltip">{shareTooltip}</span>
           <i class="fas fa-desktop" />
         </button>
       </div>
@@ -384,6 +394,59 @@
     transition: 0.1s ease;
     position: relative;
     margin: 0 10px;
+  }
+
+  .action-button .tooltip {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    color: #000;
+    text-align: center;
+    transform: translateX(-50%);
+    font-size: 0.8rem;
+    background: rgb(247, 250, 52);
+    padding: 3px 7px;
+    border-radius: 5px;
+    top: -30px;
+    visibility: hidden;
+    opacity: 0;
+    transition:  0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    transition-property: top opacity;
+    z-index: 1;
+    white-space: nowrap;
+  }
+
+  .action-button .tooltip::before {
+    content: '';
+    display: block;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: -6px;
+
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 7px 7.5px 0 7.5px;
+    border-color: rgb(247, 250, 52) transparent transparent transparent;
+  }
+
+  .action-button__sharing.sharing {
+    background: #ef5350;
+  }
+
+  .action-button__end-call .tooltip {
+    background: #ef5350;
+  }
+
+  .action-button__end-call .tooltip::before {
+    border-color: #ef5350 transparent transparent transparent;
+  }
+
+  .action-button:hover .tooltip {
+    top: -35px;
+    visibility: visible;
+    opacity: 1;
   }
 
   .action-button::after {
