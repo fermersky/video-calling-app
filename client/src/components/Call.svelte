@@ -126,7 +126,7 @@
   const _onHandshakeError = (er) => {
     rtcError('Something went wrong during webrtc handshaking.');
     criticalErrorSubject.update((_) => 'Something went wrong during the handshaking.');
-    criticalErrorSubject.update((_) => 'Reload a page and try again.');
+    criticalErrorSubject.update((_) => 'Reload the page and try again.');
 
     clearInterval(offerInterval);
 
@@ -204,6 +204,9 @@
         yourVideoStream.getVideoTracks()[0].stop();
         yourVideoStream.removeTrack(yourVideoStream.getVideoTracks()[0]);
       }, 150);
+
+      // if you remove tracks immediately after disabling (enabled = false)
+      // your video will be freezed for another participant
     }
   }
 
@@ -214,7 +217,7 @@
 
         _replaceTrackForPeer(peer, yourDisplayStream, 'video');
 
-        // onended fires when user stops screensharing from browser toast
+        // onended fires when user stops screen sharing from browser toast
         yourDisplayStream.getVideoTracks()[0].onended = () => {
           _stopTracks(yourDisplayStream);
           _replaceTrackForPeer(peer, yourVideoStream, 'video');
