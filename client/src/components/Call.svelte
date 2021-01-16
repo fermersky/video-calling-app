@@ -8,6 +8,7 @@
   import { iceServers } from '../ice-servers';
   import { emit, on } from '../services/socket.service.js';
   import { rtcError, rtcLog } from '../services/logger.js';
+  import { isMobile } from '../services/is-mobile.js';
 
   export let uid;
   export let participantUid;
@@ -28,8 +29,6 @@
     videoOff = false;
 
   const _generateConstraints = () => {
-    devices = fetchDevices();
-
     return generateConstraintsObject(devices?.selectedCamera, devices?.selectedMicrophone);
   };
 
@@ -172,11 +171,30 @@
     return getUserMedia(_generateConstraints());
   };
 
+  const _setSinkId = (htmlElementId, speaker) => {
+    try {
+      if (!htmlElementId && !speaker) {
+        return;
+      }
+
+      const participantVideo = document.getElementById(htmlElementId);
+      
+      // setSinkId is not supported on mobile (see docs)
+      if (participantVideo && !isMobile()) {
+        participantVideo.setSinkId(speaker.deviceId);
+      }
+    } catch (er) {
+      throw er;
+    }
+  }
+
   onMount(async () => {
     try {
+      devices = fetchDevices();
       yourVideoStream = await _fetchStream();
 
       _attachStreamToVideoElement('yourVideo', yourVideoStream);
+      _setSinkId('participantVideo', devices?.selectedSpeaker);
 
       peer = _createPeer();
 

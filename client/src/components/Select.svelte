@@ -1,5 +1,5 @@
 <script>
-	import { createEventDispatcher } from "svelte";
+	import { afterUpdate, createEventDispatcher } from "svelte";
 	const dispatch = createEventDispatcher();
 
 	export let items = [];
@@ -11,6 +11,10 @@
 	function handleChange(e) {
 		dispatch("onSelect", e.target.value);
 	}
+
+	afterUpdate(() => {
+		console.warn(defaultValue, items)
+	})
 </script>
 
 <style>

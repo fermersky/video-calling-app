@@ -24,6 +24,7 @@
       if (alreadySelectedDevices) {
         selectedCamera = alreadySelectedDevices.selectedCamera;
         selectedMicrophone = alreadySelectedDevices.selectedMicrophone;
+        selectedSpeaker = alreadySelectedDevices.selectedSpeaker;
       }
 
       _subscribeOnEscapeClick();
@@ -103,11 +104,11 @@
   const _getDefaultSpeaker = (devices) => {
     const alreadySelectedDevices = fetchDevices();
 
-    if (!alreadySelectedDevices) {
-      return;
+    if (alreadySelectedDevices) {
+      return selectedSpeaker;
     }
 
-    const [speaker] = _filterDevicesBy(devices, 'kind', 'audiooutput');
+    const [speaker] = distinct(devices);
 
     return speaker || devices[0];
   };
