@@ -58,7 +58,7 @@
     window.addEventListener('keydown', _escapeButtonListener);
   };
 
-  const _unsubcribeOnEscapeClick = () => {
+  const _unsubscribeOnEscapeClick = () => {
     window.removeEventListener('keydown', _escapeButtonListener);
   };
 
@@ -66,7 +66,7 @@
     window.addEventListener('click', _outsideClickListener);
   };
 
-  const _unsubscribeOnOutisdeClick = () => {
+  const _unsubscribeOnOutsideClick = () => {
     window.removeEventListener('click', _outsideClickListener);
   };
 
@@ -181,8 +181,8 @@
 
   onDestroy(() => {
     _stopStreamTracks();
-    _unsubcribeOnEscapeClick();
-    _unsubscribeOnOutisdeClick();
+    _unsubscribeOnEscapeClick();
+    _unsubscribeOnOutsideClick();
   });
 </script>
 
