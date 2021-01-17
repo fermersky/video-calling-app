@@ -34,12 +34,34 @@
       await _initializeDeviceLists();
       _initializeSelectedDevices();
     } catch (er) {
+      // this could happen if camera or mic (previously selected from modal) was disconnected
+      // app tried to fetch stream from device which is unplugged
+      if (['OverconstrainedError', 'ConstraintNotSatisfiedError'].includes(er.name)) {
+        // then try to fetch stream from default camera and mic
+        _onOverconstrainedErrorHandler();
+
+        criticalErrorSubject.update((_) => 'Unable to fetch stream from previously selected devices. They might be unplugged');
+
+        return;
+      }
+
       const msg = mediaStreamErrorMsg(er.name);
       criticalErrorSubject.update((_) => msg);
 
       deviceSelectorPopupSubject.update((_) => false);
     }
   });
+
+  const _onOverconstrainedErrorHandler = async () => {
+    selectedCamera = null;
+    selectedMicrophone = null;
+
+    await _displayUserVideo();
+    await _initializeDeviceLists();
+    _initializeSelectedDevices();
+
+    saveDevices({ selectedCamera, selectedMicrophone, selectedSpeaker });
+  }
 
   const _escapeButtonListener = (e) => {
     if (e.key === 'Escape') {
@@ -88,17 +110,17 @@
   };
 
   const _initializeSelectedDevices = () => {
-    selectedCamera = _getDefaultCamera(cameras);
-    selectedMicrophone = _getDefaultMicrophone(microphones);
+    selectedCamera = _getDefaultCamera();
+    selectedMicrophone = _getDefaultMicrophone();
     selectedSpeaker = _getDefaultSpeaker(speakers);
   };
 
-  const _getDefaultCamera = (devices) => {
-    return _getDefaultDevice('videoinput', devices);
+  const _getDefaultCamera = () => {
+    return _getDefaultDevice(cameras);
   };
 
-  const _getDefaultMicrophone = (devices) => {
-    return _getDefaultDevice('audioinput', devices);
+  const _getDefaultMicrophone = () => {
+    return _getDefaultDevice(microphones);
   };
 
   const _getDefaultSpeaker = (devices) => {
@@ -113,7 +135,7 @@
     return speaker || devices[0];
   };
 
-  const _getDefaultDevice = (kind, devices) => {
+  const _getDefaultDevice = (devices) => {
     const defaultSystemLabels = _getDefaultDevicesLabels();
 
     const groupId = devices.find((device) => defaultSystemLabels.includes(device.label))?.groupId;
