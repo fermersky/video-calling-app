@@ -12,6 +12,8 @@
   import IncomingCall from './components/IncomingCall.svelte';
   import Call from './components/Call.svelte';
 
+  const MAXIMUM_UID_LENGTH = 4;
+
   let showDeviceSettingsPopup, username, uid, participantUid;
   let copyText = 'Click to copy';
   let joined = false,
@@ -21,7 +23,7 @@
 
   let callerData;
 
-  $: callButtonDisabled = !(participantUid && participantUid.length === 4);
+  $: callButtonDisabled = !(participantUid && participantUid.length === MAXIMUM_UID_LENGTH);
 
   onMount(() => {
     const user = fetchUserDetails();
