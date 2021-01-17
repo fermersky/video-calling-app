@@ -2,7 +2,7 @@ export const mediaStreamErrorMsg = (exception) => {
   switch (exception) {
     case 'NotFoundError':
     case 'DevicesNotFoundError':
-      return 'Cannot capture video from your camera. Check your camera is plugged in and reload the page.';
+      return 'Target media device is not found or it is unplugged.';
 
     case 'NotReadableError':
     case 'TrackStartError':

@@ -4,7 +4,7 @@
   import { generateConstraintsObject, getUserMedia, getDisplayMedia } from './../services/media-devices.js';
   import { criticalErrorSubject, deviceSelectorPopupSubject } from './../stores.js';
   import { onDestroy, onMount } from 'svelte';
-  import { fetchDevices } from '../services/local-storage.js';
+  import { fetchDevices, saveDevices } from '../services/local-storage.js';
   import { iceServers } from '../ice-servers';
   import { emit, on } from '../services/socket.service.js';
   import { rtcError, rtcLog } from '../services/logger.js';
@@ -171,20 +171,24 @@
     return getUserMedia(_generateConstraints());
   };
 
-  const _setSinkId = (htmlElementId, speaker) => {
+  const _setSinkId = async (htmlElementId, speaker) => {
     try {
-      if (!htmlElementId && !speaker) {
+      if (!htmlElementId || !speaker) {
         return;
       }
 
       const participantVideo = document.getElementById(htmlElementId);
       
       // setSinkId is not supported on mobile (see docs)
-      if (participantVideo && !isMobile()) {
-        participantVideo.setSinkId(speaker.deviceId);
+      if (participantVideo && speaker.deviceId && !isMobile()) {
+        await participantVideo.setSinkId(speaker.deviceId);
       }
     } catch (er) {
-      throw er;
+      const msg = mediaStreamErrorMsg(er.name);
+      criticalErrorSubject.update((_) => msg);
+
+      criticalErrorSubject.update((_) => 'Cannot play audio on the selected speaker. Default speaker is used.');
+      saveDevices({ selectedCamera: devices?.selectedCamera, selectedMicrophone: devices?.selectedMicrophone });
     }
   }
 
