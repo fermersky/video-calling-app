@@ -6,7 +6,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { fetchDevices, saveDevices } from '../services/local-storage.js';
   import { iceServers } from '../ice-servers';
-  import { emit, on } from '../services/socket.service.js';
+  import { emit, off, on } from '../services/socket.service.js';
   import { rtcError, rtcLog } from '../services/logger.js';
   import { isMobile } from '../services/is-mobile.js';
 
@@ -21,12 +21,17 @@
 
   let devices, // {selectedCamera, selectedMicrophone, selectedSpeaker}
     yourVideoStream,
-    yourDisplayStream,
+    yourScreenSharingStream,
+    participantStream,
+    participantScreenSharingStream,
     peer,
+    screenSharingPeer,
     offerInterval,
     screenSharing = false,
     audioOff = false,
     videoOff = false;
+
+  const streams = new Map();
 
   const _generateConstraints = () => {
     return generateConstraintsObject(devices?.selectedCamera, devices?.selectedMicrophone);
@@ -46,20 +51,18 @@
       return;
     }
 
-    console.warn('html id or stream are undefined');
+    console.warn('html id or stream is undefined');
   };
 
   const _createPeer = () => new RTCPeerConnection({ iceServers: iceServers });
 
-  const _addTracksToPeer = (peer) => {
-    yourVideoStream.getTracks().map((track) => {
-      peer.addTrack(track, yourVideoStream);
+  const _addTracksToPeer = (peer, stream) => {
+    stream.getTracks().map((track) => {
+      peer.addTrack(track, stream);
     });
   };
 
   const _asOfferer = async (peer) => {
-    _addTracksToPeer(peer);
-
     peer.onnegotiationneeded = async () => {
       peer
         .createOffer()
@@ -78,11 +81,13 @@
 
     _bindCommonEventListeners(peer);
 
-    on('video-answer', (data) => {
+    on('video-answer', function (data) {
       rtcLog('got answer from another peer');
       clearInterval(offerInterval);
 
       peer.setRemoteDescription(new RTCSessionDescription(data.sdp));
+
+      off('video-answer');
     });
 
     // code that dynamically changes stream source
@@ -104,8 +109,6 @@
   };
 
   const _asAnswerer = (peer) => {
-    _addTracksToPeer(peer);
-
     on('video-offer', async (data) => {
       rtcLog('received offer from another peer');
 
@@ -123,6 +126,8 @@
         .catch(_onHandshakeError);
 
       _bindCommonEventListeners(peer);
+      
+      off('video-offer');
     });
   };
 
@@ -136,11 +141,22 @@
     console.error(er);
   };
 
+  const _onRtcStreamAdded = (stream) => {
+    streams.set(stream.id, stream);
+
+    if (streams.size === 1) {
+      _attachStreamToVideoElement('participantPrimaryVideo', stream);
+    } else if (streams.size === 2) {
+      _attachStreamToVideoElement('participantSecondaryVideo', streams.values().next().value);
+      _attachStreamToVideoElement('participantPrimaryVideo', stream);
+    }
+  }
+
   const _bindCommonEventListeners = (peer) => {
     peer.ontrack = (event) => {
+      _onRtcStreamAdded(event.streams[0]);
+      // _attachStreamToVideoElement('participantPrimaryVideo', event.streams[0]);
       rtcLog('tracks came from another peer');
-
-      document.getElementById('participantVideo').srcObject = event.streams[0];
     };
 
     peer.onicecandidate = (e) => {
@@ -185,9 +201,10 @@
       }
     } catch (er) {
       const msg = mediaStreamErrorMsg(er.name);
-      criticalErrorSubject.update((_) => msg);
 
+      criticalErrorSubject.update((_) => msg);
       criticalErrorSubject.update((_) => 'Cannot play audio on the selected speaker. Default speaker is used.');
+
       saveDevices({ selectedCamera: devices?.selectedCamera, selectedMicrophone: devices?.selectedMicrophone });
     }
   }
@@ -201,15 +218,24 @@
       _setSinkId('participantVideo', devices?.selectedSpeaker);
 
       peer = _createPeer();
+      _addTracksToPeer(peer, yourVideoStream);
 
       if (initiator) {
         _asOfferer(peer);
       } else {
         _asAnswerer(peer);
       }
+
+      on('participant-starts-screen-sharing', () => {
+        screenSharingPeer = _createPeer();
+
+        _asAnswerer(screenSharingPeer);
+      })
     } catch (er) {
       const msg = mediaStreamErrorMsg(er.name);
       criticalErrorSubject.update((_) => msg);
+
+      clearInterval(offerInterval);
     }
   });
 
@@ -231,31 +257,21 @@
         yourVideoStream.removeTrack(yourVideoStream.getVideoTracks()[0]);
       }, 150);
 
-      // if you remove tracks immediately after disabling (enabled = false)
+      // if you remove tracks immediately after disabling track (enabled = false)
       // your video will be freezed for another participant
     }
   }
 
   async function shareScreen() {
     try {
-      if (!screenSharing) {
-        yourDisplayStream = await getDisplayMedia();
+      yourScreenSharingStream = await getDisplayMedia();
+      screenSharingPeer = _createPeer();
 
-        _replaceTrackForPeer(peer, yourDisplayStream, 'video');
+      emit('start-screen-sharing', { initiatorUid: uid, targetUid: participantUid, sdp: screenSharingPeer.localDescription })
 
-        // onended fires when user stops screen sharing from browser toast
-        yourDisplayStream.getVideoTracks()[0].onended = () => {
-          _stopTracks(yourDisplayStream);
-          _replaceTrackForPeer(peer, yourVideoStream, 'video');
+      _addTracksToPeer(screenSharingPeer, yourScreenSharingStream);
+      _asOfferer(screenSharingPeer);
 
-          screenSharing = false;
-        };
-      } else {
-        _stopTracks(yourDisplayStream);
-        _replaceTrackForPeer(peer, yourVideoStream, 'video');
-      }
-
-      screenSharing = !screenSharing;
     } catch (er) {
       if (er.name === 'NotAllowedError') {
         return criticalErrorSubject.update((_) => "You've canceled sharing screen");
@@ -264,6 +280,8 @@
       criticalErrorSubject.update(
         (_) => 'Something went wrong during a screen sharing. Your browser may not support this feature ;('
       );
+
+      console.error(er);
     }
   }
 
@@ -276,7 +294,7 @@
 
   onDestroy(() => {
     _stopTracks(yourVideoStream);
-    _stopTracks(yourDisplayStream);
+    _stopTracks(yourScreenSharingStream);
   });
 </script>
 
@@ -285,12 +303,13 @@
   <div class="incoming">
     <div class:hidden={videoOff} class="yourVideo-container">
       <video class:shadow={yourVideoStream} id="yourVideo" autoplay muted />
+      <video class:shadow={participantScreenSharingStream} id="participantSecondaryVideo" autoplay muted />
       {#if !yourVideoStream}
         <Spinner style="position: absolute" />
       {/if}
     </div>
 
-    <div class="participant-video-container"><video id="participantVideo" autoplay muted={false} /></div>
+    <div class="participant-video-container"><video id="participantPrimaryVideo" autoplay muted={false} /></div>
 
     <div class="call-menu">
       <div class="call-menu-actions">
@@ -362,9 +381,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-direction: column;
   }
 
-  #yourVideo {
+  .yourVideo-container video {
     max-width: 100%;
     border-radius: 20px;
     z-index: 2;
@@ -382,9 +402,13 @@
     height: 100%;
   }
 
-  #participantVideo {
+  #participantPrimaryVideo {
     height: 100%;
     z-index: 1;
+  }
+
+  #participantSecondaryVideo {
+    margin: 20px 0;
   }
 
   .call-menu {

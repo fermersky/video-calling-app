@@ -3,7 +3,7 @@ export const getUserMedia = (constraintsObj = { video: true, audio: true }) => {
 };
 
 export const getDisplayMedia = () => {
-  return navigator.mediaDevices.getDisplayMedia();
+  return navigator.mediaDevices.getDisplayMedia({audio: true, video: true});
 };
 
 export const getMediaDevices = async () => {

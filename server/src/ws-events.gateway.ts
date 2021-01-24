@@ -74,6 +74,22 @@ export class WebsocketsEventsGateway implements OnGatewayDisconnect {
     this._findTargetAndEmit('video-offer', data, socket);
   }
 
+  // @SubscribeMessage('screen-share-video-offer')
+  // async onScreenShareVideoOffer(
+  //   @MessageBody() data: IOffer,
+  //   @ConnectedSocket() socket: Socket,
+  // ) {
+  //   this._findTargetAndEmit('screen-share-video-offer', data, socket);
+  // }
+
+  // @SubscribeMessage('screen-share-video-answer')
+  // async onScreenShareVideoAnswer(
+  //   @MessageBody() data: IAnswer,
+  //   @ConnectedSocket() socket: Socket,
+  // ) {
+  //   this._findTargetAndEmit('screen-share-video-answer', data, socket);
+  // }
+
   @SubscribeMessage('video-answer')
   async onVideoAnswer(
     @MessageBody() data: IAnswer,
@@ -88,6 +104,14 @@ export class WebsocketsEventsGateway implements OnGatewayDisconnect {
     @ConnectedSocket() socket: Socket,
   ) {
     this._findTargetAndEmit('ice-candidate', data, socket);
+  }
+
+  @SubscribeMessage('start-screen-sharing')
+  async onParticipantStartsScreenSharing(
+    @MessageBody() data: ICandidate,
+    @ConnectedSocket() socket: Socket,
+  ) {
+    this._findTargetAndEmit('participant-starts-screen-sharing', data, socket);
   }
 
   private _findTargetAndEmit(event: string, data: IEventData, socket: Socket) {
