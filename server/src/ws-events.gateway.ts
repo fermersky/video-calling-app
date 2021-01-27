@@ -74,21 +74,21 @@ export class WebsocketsEventsGateway implements OnGatewayDisconnect {
     this._findTargetAndEmit('video-offer', data, socket);
   }
 
-  // @SubscribeMessage('screen-share-video-offer')
-  // async onScreenShareVideoOffer(
-  //   @MessageBody() data: IOffer,
-  //   @ConnectedSocket() socket: Socket,
-  // ) {
-  //   this._findTargetAndEmit('screen-share-video-offer', data, socket);
-  // }
+  @SubscribeMessage('video-screen-sharing-offer')
+  async onVideoScreenSharingOffer(
+    @MessageBody() data: IOffer,
+    @ConnectedSocket() socket: Socket,
+  ) {
+    this._findTargetAndEmit('video-screen-sharing-offer', data, socket);
+  }
 
-  // @SubscribeMessage('screen-share-video-answer')
-  // async onScreenShareVideoAnswer(
-  //   @MessageBody() data: IAnswer,
-  //   @ConnectedSocket() socket: Socket,
-  // ) {
-  //   this._findTargetAndEmit('screen-share-video-answer', data, socket);
-  // }
+  @SubscribeMessage('video-screen-sharing-answer')
+  async onVideoScreenSharingAnswer(
+    @MessageBody() data: IOffer,
+    @ConnectedSocket() socket: Socket,
+  ) {
+    this._findTargetAndEmit('video-screen-sharing-answer', data, socket);
+  }
 
   @SubscribeMessage('video-answer')
   async onVideoAnswer(
@@ -106,12 +106,28 @@ export class WebsocketsEventsGateway implements OnGatewayDisconnect {
     this._findTargetAndEmit('ice-candidate', data, socket);
   }
 
+  @SubscribeMessage('ice-screen-sharing-candidate')
+  async onIceScreenSharingCandidate(
+    @MessageBody() data: ICandidate,
+    @ConnectedSocket() socket: Socket,
+  ) {
+    this._findTargetAndEmit('ice-screen-sharing-candidate', data, socket);
+  }
+
   @SubscribeMessage('start-screen-sharing')
   async onParticipantStartsScreenSharing(
     @MessageBody() data: ICandidate,
     @ConnectedSocket() socket: Socket,
   ) {
     this._findTargetAndEmit('participant-starts-screen-sharing', data, socket);
+  }
+
+  @SubscribeMessage('stop-screen-sharing')
+  async onParticipantStopsScreenSharing(
+    @MessageBody() data: ICandidate,
+    @ConnectedSocket() socket: Socket,
+  ) {
+    this._findTargetAndEmit('participant-stops-screen-sharing', data, socket);
   }
 
   private _findTargetAndEmit(event: string, data: IEventData, socket: Socket) {
@@ -122,7 +138,7 @@ export class WebsocketsEventsGateway implements OnGatewayDisconnect {
     }
   }
 
-  handleDisconnect(client: Socket) {
+  public handleDisconnect(client: Socket) {
     this._users.remove(this.socketIdToUid(client.id));
   }
 
