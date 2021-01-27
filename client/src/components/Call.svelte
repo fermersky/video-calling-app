@@ -5,10 +5,19 @@
   import { criticalErrorSubject, deviceSelectorPopupSubject } from './../stores.js';
   import { onDestroy, onMount } from 'svelte';
   import { fetchDevices, saveDevices } from '../services/local-storage.js';
-  import { iceServers } from '../ice-servers';
   import { emit, off, on } from '../services/socket.service.js';
   import { rtcError, rtcLog } from '../services/logger.js';
   import { isMobile } from '../services/is-mobile.js';
+  import {
+    streamTypeToSocketEvents,
+    closePeerConnection,
+    stopTracks,
+    replaceTrackForPeer,
+    attachStreamToVideoElement,
+    createPeer,
+    detachStreamFromVideoElement,
+    addTracksToPeer,
+  } from '../services/webrtc';
 
   export let uid;
   export let participantUid;
@@ -22,8 +31,6 @@
   let devices, // {selectedCamera, selectedMicrophone, selectedSpeaker}
     yourVideoStream,
     yourScreenSharingStream,
-    participantStream,
-    participantScreenSharingStream,
     peer,
     screenSharingPeer,
     offerInterval,
@@ -37,32 +44,9 @@
     return generateConstraintsObject(devices?.selectedCamera, devices?.selectedMicrophone);
   };
 
-  const _stopTracks = (stream) => {
-    if (!stream) return;
+  const _asOfferer = async (peer, mode = 'video-call') => {
+    const { offer, answer } = streamTypeToSocketEvents(mode);
 
-    stream.getTracks().map((track) => track.stop());
-  };
-
-  const _attachStreamToVideoElement = (id, stream) => {
-    const video = document.getElementById(id);
-
-    if (video && stream) {
-      video.srcObject = stream;
-      return;
-    }
-
-    console.warn('html id or stream is undefined');
-  };
-
-  const _createPeer = () => new RTCPeerConnection({ iceServers: iceServers });
-
-  const _addTracksToPeer = (peer, stream) => {
-    stream.getTracks().map((track) => {
-      peer.addTrack(track, stream);
-    });
-  };
-
-  const _asOfferer = async (peer) => {
     peer.onnegotiationneeded = async () => {
       peer
         .createOffer()
@@ -72,44 +56,29 @@
         .then(() => {
           // sending offer until another peer answers
           offerInterval = setInterval(() => {
-            emit('video-offer', { initiatorUid: uid, targetUid: participantUid, sdp: peer.localDescription });
-            rtcLog('offer sent to another peer');
+            emit(offer, { initiatorUid: uid, targetUid: participantUid, sdp: peer.localDescription });
+            rtcLog(`${offer} sent to another peer`);
           }, 1000);
         })
         .catch(_onHandshakeError);
     };
 
-    _bindCommonEventListeners(peer);
+    _bindCommonEventListeners(peer, mode);
 
-    on('video-answer', function (data) {
-      rtcLog('got answer from another peer');
+    on(answer, function (data) {
+      rtcLog(`got ${answer} from another peer`);
       clearInterval(offerInterval);
 
       peer.setRemoteDescription(new RTCSessionDescription(data.sdp));
 
-      off('video-answer');
+      off(answer);
     });
-
-    // code that dynamically changes stream source
-    // setTimeout(async () => {
-    //   const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    //   _attachStreamToVideoElement('yourVideo', stream);
-
-    //   peer.getSenders().map((sender) => {
-    //     console.log(sender);
-
-    //     stream.getVideoTracks().forEach(function (track) {
-    //       const sender = peer.getSenders().find(function (s) {
-    //         return s.track.kind == track.kind;
-    //       });
-    //       sender.replaceTrack(track);
-    //     });
-    //   });
-    // }, 10000);
   };
 
-  const _asAnswerer = (peer) => {
-    on('video-offer', async (data) => {
+  const _asAnswerer = (peer, mode = 'video-call') => {
+    const { offer, answer } = streamTypeToSocketEvents(mode);
+
+    on(offer, async (data) => {
       rtcLog('received offer from another peer');
 
       peer
@@ -121,13 +90,13 @@
           return peer.setLocalDescription(answer);
         })
         .then(() => {
-          emit('video-answer', { initiatorUid: uid, targetUid: participantUid, sdp: peer.localDescription });
+          emit(answer, { initiatorUid: uid, targetUid: participantUid, sdp: peer.localDescription });
         })
         .catch(_onHandshakeError);
 
-      _bindCommonEventListeners(peer);
-      
-      off('video-offer');
+      _bindCommonEventListeners(peer, mode);
+
+      off(offer);
     });
   };
 
@@ -142,45 +111,45 @@
   };
 
   const _onRtcStreamAdded = (stream) => {
+    if (streams.has(stream.id)) {
+      return;
+    }
+
     streams.set(stream.id, stream);
 
     if (streams.size === 1) {
-      _attachStreamToVideoElement('participantPrimaryVideo', stream);
+      attachStreamToVideoElement('participantPrimaryVideo', stream);
     } else if (streams.size === 2) {
-      _attachStreamToVideoElement('participantSecondaryVideo', streams.values().next().value);
-      _attachStreamToVideoElement('participantPrimaryVideo', stream);
+      attachStreamToVideoElement('participantSecondaryVideo', _getFirstItemOfMap(streams).value);
+      attachStreamToVideoElement('participantPrimaryVideo', stream);
     }
-  }
+  };
 
-  const _bindCommonEventListeners = (peer) => {
+  const _getFirstItemOfMap = (map) => {
+    return map.values().next();
+  };
+
+  const _bindCommonEventListeners = (peer, mode) => {
+    const { iceCandidate } = streamTypeToSocketEvents(mode);
+
     peer.ontrack = (event) => {
       _onRtcStreamAdded(event.streams[0]);
-      // _attachStreamToVideoElement('participantPrimaryVideo', event.streams[0]);
+      // attachStreamToVideoElement('participantPrimaryVideo', event.streams[0]);
       rtcLog('tracks came from another peer');
     };
 
     peer.onicecandidate = (e) => {
       if (e.candidate) {
-        emit('ice-candidate', { initiatorUid: uid, targetUid: participantUid, candidate: e.candidate });
+        emit(iceCandidate, { initiatorUid: uid, targetUid: participantUid, candidate: e.candidate });
       }
     };
 
-    on('ice-candidate', (data) => {
+    on(iceCandidate, (data) => {
       if (data.candidate) {
-        rtcLog('ice-candidate - received');
-
+        rtcLog(`${iceCandidate} - received`);
         peer.addIceCandidate(new RTCIceCandidate(data.candidate));
       }
     });
-  };
-
-  const _replaceTrackForPeer = (peer, stream, kind) => {
-    const track = stream.getTracks().find((t) => t.kind === kind);
-    const sender = peer.getSenders().find((s) => s.track.kind === kind);
-
-    sender.replaceTrack(track);
-
-    return track;
   };
 
   const _fetchStream = async () => {
@@ -194,7 +163,7 @@
       }
 
       const participantVideo = document.getElementById(htmlElementId);
-      
+
       // setSinkId is not supported on mobile (see docs)
       if (participantVideo && speaker.deviceId && !isMobile()) {
         await participantVideo.setSinkId(speaker.deviceId);
@@ -207,30 +176,47 @@
 
       saveDevices({ selectedCamera: devices?.selectedCamera, selectedMicrophone: devices?.selectedMicrophone });
     }
-  }
+  };
+
+  const _unsubscribeFromSocketEvents = (mode) => {
+    Object.values(streamTypeToSocketEvents(mode)).map((socketEvent) => {
+      off(socketEvent);
+    });
+  };
 
   onMount(async () => {
     try {
       devices = fetchDevices();
       yourVideoStream = await _fetchStream();
 
-      _attachStreamToVideoElement('yourVideo', yourVideoStream);
+      attachStreamToVideoElement('yourVideo', yourVideoStream);
       _setSinkId('participantVideo', devices?.selectedSpeaker);
 
-      peer = _createPeer();
-      _addTracksToPeer(peer, yourVideoStream);
+      peer = createPeer();
+      addTracksToPeer(peer, yourVideoStream);
 
       if (initiator) {
-        _asOfferer(peer);
+        _asOfferer(peer, 'video-call');
       } else {
-        _asAnswerer(peer);
+        _asAnswerer(peer, 'video-call');
       }
 
       on('participant-starts-screen-sharing', () => {
-        screenSharingPeer = _createPeer();
+        screenSharingPeer = createPeer();
 
-        _asAnswerer(screenSharingPeer);
-      })
+        _asAnswerer(screenSharingPeer, 'screenshare');
+      });
+
+      on('participant-stops-screen-sharing', ({ streamId }) => {
+        closePeerConnection(screenSharingPeer);
+        _unsubscribeFromSocketEvents('screenshare');
+        stopTracks(streams.get(streamId));
+
+        streams.delete(streamId);
+
+        detachStreamFromVideoElement('participantSecondaryVideo');
+        attachStreamToVideoElement('participantPrimaryVideo', _getFirstItemOfMap(streams).value);
+      });
     } catch (er) {
       const msg = mediaStreamErrorMsg(er.name);
       criticalErrorSubject.update((_) => msg);
@@ -244,11 +230,11 @@
 
     if (!videoOff) {
       const newStream = await _fetchStream();
-      const track = _replaceTrackForPeer(peer, newStream, 'video');
+      const track = replaceTrackForPeer(peer, newStream, 'video');
 
       yourVideoStream.addTrack(track);
 
-      _attachStreamToVideoElement('yourVideo', yourVideoStream);
+      attachStreamToVideoElement('yourVideo', yourVideoStream);
     } else {
       yourVideoStream.getVideoTracks()[0].enabled = false;
 
@@ -265,13 +251,28 @@
   async function shareScreen() {
     try {
       yourScreenSharingStream = await getDisplayMedia();
-      screenSharingPeer = _createPeer();
+      screenSharingPeer = createPeer();
 
-      emit('start-screen-sharing', { initiatorUid: uid, targetUid: participantUid, sdp: screenSharingPeer.localDescription })
+      emit('start-screen-sharing', {
+        initiatorUid: uid,
+        targetUid: participantUid,
+        sdp: screenSharingPeer.localDescription,
+      });
 
-      _addTracksToPeer(screenSharingPeer, yourScreenSharingStream);
-      _asOfferer(screenSharingPeer);
+      addTracksToPeer(screenSharingPeer, yourScreenSharingStream);
+      _asOfferer(screenSharingPeer, 'screenshare');
 
+      yourScreenSharingStream.getVideoTracks()[0].onended = () => {
+        emit('stop-screen-sharing', {
+          initiatorUid: uid,
+          targetUid: participantUid,
+          streamId: yourScreenSharingStream.id,
+        });
+
+        closePeerConnection(screenSharingPeer);
+        _unsubscribeFromSocketEvents('screenshare');
+        stopTracks(yourScreenSharingStream);
+      };
     } catch (er) {
       if (er.name === 'NotAllowedError') {
         return criticalErrorSubject.update((_) => "You've canceled sharing screen");
@@ -293,8 +294,8 @@
   function endCall() {}
 
   onDestroy(() => {
-    _stopTracks(yourVideoStream);
-    _stopTracks(yourScreenSharingStream);
+    stopTracks(yourVideoStream);
+    stopTracks(yourScreenSharingStream);
   });
 </script>
 
@@ -302,8 +303,8 @@
   <!-- {participantUid} {username} {uid} -->
   <div class="incoming">
     <div class:hidden={videoOff} class="yourVideo-container">
-      <video class:shadow={yourVideoStream} id="yourVideo" autoplay muted />
-      <video class:shadow={participantScreenSharingStream} id="participantSecondaryVideo" autoplay muted />
+      <video class:shadow={yourVideoStream} id="yourVideo" autoplay muted="true" />
+      <video id="participantSecondaryVideo" autoplay />
       {#if !yourVideoStream}
         <Spinner style="position: absolute" />
       {/if}
@@ -319,7 +320,7 @@
             <i class="fas fa-video" />
           </button>
         {/if}
-        <button class="action-button action-button__end-call" on:click={endCall}> 
+        <button class="action-button action-button__end-call" on:click={endCall}>
           <span class="tooltip">End Call</span>
           <i class="fas fa-phone" />
         </button>
@@ -456,7 +457,7 @@
     top: -30px;
     visibility: hidden;
     opacity: 0;
-    transition:  0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    transition: 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     transition-property: top opacity;
     z-index: 1;
     white-space: nowrap;
