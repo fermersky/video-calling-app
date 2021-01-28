@@ -32,6 +32,8 @@ export class WebsocketsEventsGateway implements OnGatewayDisconnect {
       uid: this.socketIdToUid(client.id),
     };
 
+    console.log(user);
+
     this._users.push(user);
     client.emit('welcome', user);
   }
@@ -42,6 +44,8 @@ export class WebsocketsEventsGateway implements OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
   ) {
     const receiver = this._users.getById(data.targetUid);
+
+    console.log({targetId: data.targetUid, receiver})
 
     if (receiver && receiver.uid !== data.initiatorUid) {
       return this.server.to(receiver.socketId).emit('incoming-call', data);

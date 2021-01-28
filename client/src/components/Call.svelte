@@ -19,14 +19,11 @@
     addTracksToPeer,
   } from '../services/webrtc';
 
-  export let uid;
-  export let participantUid;
-  export let username;
-  export let initiator;
+  export let uid, participantUid, username, initiator;
 
   $: videoTooltip = videoOff ? 'Unmute Video' : 'Mute Video';
   $: audioTooltip = audioOff ? 'Unmute Audio' : 'Mute Audio';
-  $: shareTooltip = screenSharing ? 'Stop Sharing Screen' : 'Share Screen';
+  $: shareTooltip = youAreSharingScreen ? 'Stop Sharing Screen' : 'Share Screen';
 
   let devices, // {selectedCamera, selectedMicrophone, selectedSpeaker}
     yourVideoStream,
@@ -34,7 +31,7 @@
     peer,
     screenSharingPeer,
     offerInterval,
-    screenSharing = false,
+    youAreSharingScreen = false,
     audioOff = false,
     videoOff = false;
 
@@ -134,7 +131,6 @@
 
     peer.ontrack = (event) => {
       _onRtcStreamAdded(event.streams[0]);
-      // attachStreamToVideoElement('participantPrimaryVideo', event.streams[0]);
       rtcLog('tracks came from another peer');
     };
 
@@ -182,6 +178,39 @@
     Object.values(streamTypeToSocketEvents(mode)).map((socketEvent) => {
       off(socketEvent);
     });
+  };
+
+  const _startScreenSharing = async () => {
+    yourScreenSharingStream = await getDisplayMedia();
+    screenSharingPeer = createPeer();
+
+    emit('start-screen-sharing', {
+      initiatorUid: uid,
+      targetUid: participantUid,
+      sdp: screenSharingPeer.localDescription,
+    });
+
+    addTracksToPeer(screenSharingPeer, yourScreenSharingStream);
+    _asOfferer(screenSharingPeer, 'screenshare');
+
+    yourScreenSharingStream.getVideoTracks()[0].onended = _stopScreenSharing;
+
+    youAreSharingScreen = true;
+  };
+
+  const _stopScreenSharing = () => {
+    youAreSharingScreen = false;
+
+    emit('stop-screen-sharing', {
+      initiatorUid: uid,
+      targetUid: participantUid,
+      streamId: yourScreenSharingStream.id,
+    });
+
+    closePeerConnection(screenSharingPeer);
+    _unsubscribeFromSocketEvents('screenshare');
+    stopTracks(yourScreenSharingStream);
+    yourScreenSharingStream = null;
   };
 
   onMount(async () => {
@@ -250,29 +279,11 @@
 
   async function shareScreen() {
     try {
-      yourScreenSharingStream = await getDisplayMedia();
-      screenSharingPeer = createPeer();
-
-      emit('start-screen-sharing', {
-        initiatorUid: uid,
-        targetUid: participantUid,
-        sdp: screenSharingPeer.localDescription,
-      });
-
-      addTracksToPeer(screenSharingPeer, yourScreenSharingStream);
-      _asOfferer(screenSharingPeer, 'screenshare');
-
-      yourScreenSharingStream.getVideoTracks()[0].onended = () => {
-        emit('stop-screen-sharing', {
-          initiatorUid: uid,
-          targetUid: participantUid,
-          streamId: yourScreenSharingStream.id,
-        });
-
-        closePeerConnection(screenSharingPeer);
-        _unsubscribeFromSocketEvents('screenshare');
-        stopTracks(yourScreenSharingStream);
-      };
+      if (yourScreenSharingStream) {
+        _stopScreenSharing();
+      } else {
+        _startScreenSharing();
+      }
     } catch (er) {
       if (er.name === 'NotAllowedError') {
         return criticalErrorSubject.update((_) => "You've canceled sharing screen");
@@ -303,23 +314,21 @@
   <!-- {participantUid} {username} {uid} -->
   <div class="incoming">
     <div class:hidden={videoOff} class="yourVideo-container">
-      <video class:shadow={yourVideoStream} id="yourVideo" autoplay muted="true" />
-      <video id="participantSecondaryVideo" autoplay />
+      <video playsinline class:shadow={yourVideoStream} id="yourVideo"  autoplay muted={true} />
+      <video playsinline id="participantSecondaryVideo" autoplay  />
       {#if !yourVideoStream}
         <Spinner style="position: absolute" />
       {/if}
     </div>
 
-    <div class="participant-video-container"><video id="participantPrimaryVideo" autoplay muted={false} /></div>
+    <div class="participant-video-container"><video playsinline id="participantPrimaryVideo" autoplay /></div>
 
     <div class="call-menu">
       <div class="call-menu-actions">
-        {#if !screenSharing}
-          <button class="action-button action-button__video" class:mute={videoOff} on:click={toggleMyVideo}>
-            <span class="tooltip">{videoTooltip}</span>
-            <i class="fas fa-video" />
-          </button>
-        {/if}
+        <button class="action-button action-button__video" class:mute={videoOff} on:click={toggleMyVideo}>
+          <span class="tooltip">{videoTooltip}</span>
+          <i class="fas fa-video" />
+        </button>
         <button class="action-button action-button__end-call" on:click={endCall}>
           <span class="tooltip">End Call</span>
           <i class="fas fa-phone" />
@@ -328,7 +337,11 @@
           <span class="tooltip">{audioTooltip}</span>
           <i class="fas fa-microphone-alt" />
         </button>
-        <button class="action-button action-button__sharing" class:sharing={screenSharing} on:click={shareScreen}>
+        <button
+          class="action-button action-button__sharing"
+          class:sharing={youAreSharingScreen}
+          on:click={shareScreen}
+        >
           <span class="tooltip">{shareTooltip}</span>
           <i class="fas fa-desktop" />
         </button>

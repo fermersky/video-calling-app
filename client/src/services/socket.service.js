@@ -1,4 +1,4 @@
-const socket = io('http://localhost:3000');
+const socket = io('https://calling-daniel-application.herokuapp.com/');
 
 export const on = (event, fn) => {
   socket.on(event, fn);

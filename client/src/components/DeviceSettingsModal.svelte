@@ -264,7 +264,7 @@
       </div>
     {/if}
 
-    <div class="video-container"><video autoplay muted id="video" /></div>
+    <div class="video-container"><video playsinline autoplay muted id="video" /></div>
 
     <Select
       on:onSelect={onCameraSelect}
