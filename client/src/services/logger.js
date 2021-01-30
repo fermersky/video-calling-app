@@ -1,5 +1,5 @@
 export const createLogger = (...fns) => {
-  return (x) => fns.reduce((x, f) => f(x), x);
+  return (initial) => fns.reduce((param, func) => func(param), initial);
 };
 
 export const rtcLog = createLogger((x) => {

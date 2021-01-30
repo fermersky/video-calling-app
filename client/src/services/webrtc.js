@@ -15,11 +15,15 @@ export const streamTypeToSocketEvents = (mode) => {
         answer: 'video-screen-sharing-answer',
         iceCandidate: 'ice-screen-sharing-candidate',
       };
+    
+    default: return {};
   }
 };
 
 export const stopTracks = (stream) => {
-  if (!stream) return;
+  if (!stream) {
+    return;
+  }
 
   stream.getTracks().map((track) => track.stop());
   stream = null;
@@ -30,10 +34,7 @@ export const attachStreamToVideoElement = (id, stream) => {
 
   if (video && stream) {
     video.srcObject = stream;
-    return;
   }
-
-  console.warn('html id or stream is undefined');
 };
 
 export const createPeer = () => new RTCPeerConnection({ iceServers: iceServers });
@@ -46,7 +47,7 @@ export const detachStreamFromVideoElement = (id) => {
 };
 
 export const addTracksToPeer = (peer, stream) => {
-  stream.getTracks().map((track) => {
+  stream.getTracks().forEach((track) => {
     peer.addTrack(track, stream);
   });
 };
