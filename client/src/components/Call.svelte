@@ -5,7 +5,7 @@
   import { criticalErrorSubject, deviceSelectorPopupSubject } from './../stores.js';
   import { onDestroy, onMount } from 'svelte';
   import { fetchDevices, saveDevices } from '../services/local-storage.js';
-  import { emit, off, on } from '../services/socket.service.js';
+  import { emit, off, on } from '../services/socket.js';
   import { rtcError, rtcLog } from '../services/logger.js';
   import { isMobile } from '../services/is-mobile.js';
   import {
