@@ -279,7 +279,7 @@
 
   async function shareScreen() {
     try {
-      if (yourScreenSharingStream) {
+      if (youAreSharingScreen) {
         _stopScreenSharing();
       } else {
         _startScreenSharing();
