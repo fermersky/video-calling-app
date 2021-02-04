@@ -4,7 +4,7 @@
   import Button from './components/Button.svelte';
   import { deviceSelectorPopupSubject, userInfoSubject, criticalErrorSubject } from './stores.js';
   import DeviceSettingsModal from './components/DeviceSettingsModal.svelte';
-  import { on, emit, off } from './services/socket.service';
+  import { on, emit, off } from './services/socket';
   import { fetchUserDetails, saveUserDetails } from './services/local-storage';
   import { onMount } from 'svelte';
   import Emoji from './components/Emoji.svelte';
