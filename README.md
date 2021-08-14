@@ -4,6 +4,8 @@
 
 Also user is able to select camera, microphone and speaker for a call in app settings.
 
+Written on `Node.js` and `Svelte`
+
 Home page: https://dynastytyan.github.io/
 
 [![Animation.gif](https://i.postimg.cc/dtCMbnds/Animation.gif)](https://postimg.cc/nCnw740g)
